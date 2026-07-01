@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LinkLab — Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="root">
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen">
+      <h1>LinkLab (Demo)</h1>
+      <p>Einfacher Demo‑Login. Melde dich mit einer beliebigen E‑Mail an.</p>
+      <form id="login-form">
+        <input id="login-email" type="email" placeholder="E‑Mail" required />
+        <button type="submit">Login (Demo)</button>
+      </form>
+    </div>
+
+    <!-- App Screen -->
+    <div id="app-screen" class="screen hidden">
+      <header>
+        <h1>LinkLab</h1>
+        <div class="user-actions">
+          <span id="user-email"></span>
+          <button id="logout-btn">Logout</button>
+        </div>
+      </header>
+
+      <main>
+        <div class="topbar">
+          <button id="new-section-btn">＋ New Section</button>
+        </div>
+
+        <div id="sections"></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
