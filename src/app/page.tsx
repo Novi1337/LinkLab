@@ -466,15 +466,8 @@ export default function Home() {
         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm -z-10"></div>
         <div className="w-full max-w-[420px] text-center z-10">
           <div className="flex items-center justify-center gap-3 mb-8 drop-shadow-sm">
-            <div className="bg-[#0B132B] text-white p-2 rounded-2xl flex items-center justify-center w-14 h-14 shadow-lg shadow-[#0B132B]/30 relative overflow-hidden">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 rotate-45 transform -translate-x-[2px]">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-              </svg>
-              <div className="absolute font-bold text-white text-[10px] bottom-1 left-1.5 leading-none tracking-tighter">L</div>
-              <div className="absolute font-bold text-white text-[10px] top-1 right-2 leading-none tracking-tighter">L</div>
-            </div>
-            <h1 className="text-[2.75rem] font-[900] tracking-tighter text-[#0B132B] uppercase">LINK<span className="font-medium text-[#0B132B]">LIB</span></h1>
+            <img src="/logo.svg" alt="LinkLib Logo" className="w-[85px] h-[85px] drop-shadow-md rounded-2xl" />
+            <h1 className="text-[3.25rem] font-[900] tracking-tighter text-[#0B132B] uppercase">LINK<span className="font-medium text-[#0B132B]">LIB</span></h1>
           </div>
           <div className="bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/50">
             <div className="flex gap-2 mb-6 border-b border-slate-200/60 pb-0">
@@ -551,16 +544,9 @@ export default function Home() {
   return (
     <div className="min-h-screen font-sans">
       <header className="max-w-[1100px] mx-auto flex justify-between items-center p-5 bg-transparent border-b border-transparent sticky top-0 z-20">
-        <div className="flex items-center gap-2">
-          <div className="bg-[#0B132B] text-white p-1.5 rounded-xl flex items-center justify-center w-10 h-10 shadow-md shadow-[#0B132B]/20 relative overflow-hidden">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px] rotate-45 transform -translate-x-[2px]">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-            </svg>
-            <div className="absolute font-bold text-white text-[8px] bottom-0.5 left-1 leading-none tracking-tighter">L</div>
-            <div className="absolute font-bold text-white text-[8px] top-1 right-1.5 leading-none tracking-tighter">L</div>
-          </div>
-          <h2 className="text-2xl font-[900] tracking-tighter text-[#0B132B] m-0 uppercase">LINK<span className="font-medium">LIB</span></h2>
+        <div className="flex items-center gap-3">
+          <img src="/logo.svg" alt="LinkLib Logo" className="w-[50px] h-[50px] drop-shadow-sm rounded-xl" />
+          <h2 className="text-[1.8rem] font-[900] tracking-tighter text-[#0B132B] m-0 uppercase">LINK<span className="font-medium">LIB</span></h2>
         </div>
         <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
           <span className="hidden sm:inline-block font-semibold">{userEmail}</span>
