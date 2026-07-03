@@ -6,15 +6,14 @@ export function AdBanner({ dataAdSlot, dataAdFormat = "auto", dataFullWidthRespo
   const [consentGranted, setConsentGranted] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem("cookie-consent") === "accepted") {
-      setConsentGranted(true);
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConsentGranted(localStorage.getItem("cookie-consent") === "accepted");
   }, []);
 
   useEffect(() => {
     if (consentGranted) {
       try {
-        // @ts-ignore
+        // @ts-expect-error This is injected by the AdSense script
         (window.adsbygoogle = window.adsbygoogle || []).push({});
       } catch (e) {
         console.error("AdSense error", e);

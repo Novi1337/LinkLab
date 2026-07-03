@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-card py-16 px-5">
@@ -12,13 +14,13 @@ export default function PrivacyPolicy() {
         <p className="mb-4">Diese Interessensprofile werden verwendet, um Werbeanzeigen auf unserer Website gezielt auf Sie zuzuschneiden. Diese Profile fließen auch teilweise in Werbenetzwerke (wie Google AdSense) ein.</p>
 
         <h2 className="text-xl font-bold mt-6 mb-2">3. Google AdSense</h2>
-        <p className="mb-4">Diese Website verwendet Google AdSense, einen Dienst zum Einbinden von Werbeanzeigen der Google Inc. ("Google"). Google AdSense verwendet sogenannte "Cookies", Textdateien, die auf Ihrem Computer gespeichert werden und die eine Analyse der Benutzung der Website ermöglichen.</p>
+        <p className="mb-4">Diese Website verwendet Google AdSense, einen Dienst zum Einbinden von Werbeanzeigen der Google Inc. (&quot;Google&quot;). Google AdSense verwendet sogenannte &quot;Cookies&quot;, Textdateien, die auf Ihrem Computer gespeichert werden und die eine Analyse der Benutzung der Website ermöglichen.</p>
 
         <h2 className="text-xl font-bold mt-6 mb-2">4. Widerruf & Löschung</h2>
         <p className="mb-4">Sie haben jederzeit das Recht, Ihre Einwilligung zur Auswertung Ihrer Daten zu widerrufen. Sie können Ihre gespeicherten Links vollständig aus der Datenbank löschen, indem Sie Ihren Account oder die Sektionen über das Interface entfernen.</p>
 
         <div className="mt-12 pt-8 border-t border-slate-200">
-          <a href="/" className="text-primary font-medium hover:underline">← Zurück zur Startseite</a>
+          <Link href="/" className="text-primary font-medium hover:underline">← Zurück zur Startseite</Link>
         </div>
       </div>
     </div>

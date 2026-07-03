@@ -8,9 +8,8 @@ export function CookieConsent() {
   useEffect(() => {
     // Check if the user has already consented
     const consent = localStorage.getItem("cookie-consent");
-    if (!consent) {
-      setShowBanner(true);
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShowBanner(!consent);
   }, []);
 
   const acceptCookies = () => {
@@ -34,7 +33,7 @@ export function CookieConsent() {
         <div>
           <h3 className="text-lg font-bold text-slate-800 mb-2">Wir verwenden Cookies & personalisierte Werbung</h3>
           <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
-            Wir werten die von dir gespeicherten Links (Domains und Sektionen) durch Algorithmen aus, um deine Interessen zu erkennen und dir personalisierte Werbung (z. B. über Google AdSense) sowie optimierte Funktionen anzuzeigen. Mit dem Klick auf "Zustimmen" erlaubst du uns die Speicherung von Cookies und die Analyse dieser Daten gemäß der DSGVO.
+            Wir werten die von dir gespeicherten Links (Domains und Sektionen) durch Algorithmen aus, um deine Interessen zu erkennen und dir personalisierte Werbung (z. B. über Google AdSense) sowie optimierte Funktionen anzuzeigen. Mit dem Klick auf &quot;Zustimmen&quot; erlaubst du uns die Speicherung von Cookies und die Analyse dieser Daten gemäß der DSGVO.
             <br />
             <a href="/datenschutz" className="text-primary hover:underline mt-1 inline-block">Weitere Informationen in der Datenschutzerklärung</a>.
           </p>

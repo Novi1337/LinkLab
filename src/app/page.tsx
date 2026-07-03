@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { ReactSortable } from "react-sortablejs";
 import { supabase } from "@/lib/supabaseClient";
 import { AdBanner } from "@/components/AdBanner";
+import { Edit2 } from "lucide-react";
+import { PromptModal } from "@/components/PromptModal";
 
 type Link = {
   id: string;
@@ -44,6 +46,26 @@ export default function Home() {
   const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({});
   const [activeLinkForm, setActiveLinkForm] = useState<string | null>(null);
 
+  const [promptData, setPromptData] = useState<{
+    isOpen: boolean;
+    title: string;
+    initialValue: string;
+    onConfirm: (val: string) => void;
+  }>({
+    isOpen: false,
+    title: "",
+    initialValue: "",
+    onConfirm: () => {},
+  });
+
+  const openPrompt = (title: string, initialValue: string, onConfirm: (val: string) => void) => {
+    setPromptData({ isOpen: true, title, initialValue, onConfirm });
+  };
+
+  const closePrompt = () => {
+    setPromptData(prev => ({ ...prev, isOpen: false }));
+  };
+
   const toggleCollapse = (sectionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setCollapsedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
@@ -79,7 +101,7 @@ export default function Home() {
       loadTab = currentTabs[0].id;
     }
     
-    if (loadTab !== activeTabId) {
+    if (loadTab) {
       setActiveTabId(loadTab);
     }
 
@@ -120,7 +142,7 @@ export default function Home() {
 
       setSections(roots);
     }
-  }, [activeTabId]);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -149,24 +171,28 @@ export default function Home() {
 
   // Tab Methods
   const addTab = async () => {
-    const name = prompt("Name des neuen Reiters:");
-    if (!name?.trim()) return;
-    
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) return;
-    
-    const { data } = await supabase.from("tabs").insert([{ name: name.trim(), user_id: sessionData.session.user.id }]).select();
-    if (data && data.length > 0) {
-      setTabs([...tabs, data[0]]);
-      fetchData(data[0].id);
-    }
+    openPrompt("Name des neuen Reiters:", "", async (name) => {
+      closePrompt();
+      if (!name?.trim()) return;
+      
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) return;
+      
+      const { data } = await supabase.from("tabs").insert([{ name: name.trim(), user_id: sessionData.session.user.id }]).select();
+      if (data && data.length > 0) {
+        setTabs(prev => [...prev, data[0]]);
+        fetchData(data[0].id);
+      }
+    });
   };
 
   const renameTab = async (tabId: string, oldName: string) => {
-    const name = prompt("Reiter umbenennen:", oldName);
-    if (!name || name.trim() === oldName) return;
-    await supabase.from("tabs").update({ name: name.trim() }).eq("id", tabId);
-    setTabs(tabs.map(t => t.id === tabId ? { ...t, name: name.trim() } : t));
+    openPrompt("Reiter umbenennen:", oldName, async (name) => {
+      closePrompt();
+      if (!name || name.trim() === oldName) return;
+      await supabase.from("tabs").update({ name: name.trim() }).eq("id", tabId);
+      setTabs(tabs.map(t => t.id === tabId ? { ...t, name: name.trim() } : t));
+    });
   };
 
   const deleteTab = async (tabId: string) => {
@@ -214,22 +240,24 @@ export default function Home() {
 
   // Data Actions
   const addSection = async (parentId: string | null = null) => {
-    const name = prompt(parentId ? "Wie soll die Untersektion heißen?" : "Wie soll die neue Hauptsektion heißen?");
-    if (!name?.trim()) return;
+    openPrompt(parentId ? "Wie soll die Untersektion heißen?" : "Wie soll die neue Hauptsektion heißen?", "", async (name) => {
+      closePrompt();
+      if (!name?.trim()) return;
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) return;
 
-    const { error } = await supabase
-      .from("sections")
-      .insert([{ name: name.trim(), user_id: sessionData.session.user.id, parent_id: parentId, tab_id: activeTabId }])
-      .select();
+      const { error } = await supabase
+        .from("sections")
+        .insert([{ name: name.trim(), user_id: sessionData.session.user.id, parent_id: parentId, tab_id: activeTabId }])
+        .select();
 
-    if (!error) {
-      fetchData(activeTabId);
-    } else {
-      alert("Fehler beim Erstellen der Sektion: " + error.message);
-    }
+      if (!error) {
+        fetchData(activeTabId);
+      } else {
+        alert("Fehler beim Erstellen der Sektion: " + error.message);
+      }
+    });
   };
 
   const updateSectionInState = (list: Section[], targetId: string, updater: (s: Section) => Section): Section[] => {
@@ -295,6 +323,15 @@ export default function Home() {
     }
   };
 
+  const renameSection = async (sectionId: string, oldName: string) => {
+    openPrompt("Sektion umbenennen:", oldName, async (name) => {
+      closePrompt();
+      if (!name || name.trim() === oldName) return;
+      await supabase.from("sections").update({ name: name.trim() }).eq("id", sectionId);
+      setSections(prev => updateSectionInState(prev, sectionId, s => ({ ...s, name: name.trim() })));
+    });
+  };
+
   const deleteSection = async (sectionId: string) => {
     if (confirm("Sektion (und ihre Untersektionen/Links) wirklich löschen?")) {
       await supabase.from("sections").delete().eq("id", sectionId);
@@ -321,8 +358,9 @@ export default function Home() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
               )}
             </button>
-            <h3 className={`${depth > 0 ? "text-lg font-medium text-slate-700" : "text-xl font-semibold text-slate-800"} m-0`}>
+            <h3 className={`${depth > 0 ? "text-lg font-medium text-slate-700" : "text-xl font-semibold text-slate-800"} m-0 flex items-center gap-2 group/heading cursor-pointer`} onClick={() => renameSection(section.id, section.name)} title="Hier klicken zum Bearbeiten">
               {section.name}
+              <Edit2 className="w-4 h-4 text-slate-300 opacity-0 group-hover/heading:opacity-100 transition-opacity" />
             </h3>
           </div>
           <div className="flex gap-4 items-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -514,21 +552,29 @@ export default function Home() {
       </header>
 
       {/* TABS Navigation */}
-      <div className="max-w-[1100px] mx-auto px-5 mb-8">
+      <div className="max-w-[1100px] mx-auto px-5 mb-4">
         <div className="flex gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar pb-[-1px] items-center pt-2">
           {tabs.map((tab) => (
             <div key={tab.id} className="relative group/tab flex items-center shrink-0">
               <button 
-                onClick={() => fetchData(tab.id)}
+                onClick={(e) => {
+                  // Prevent click from bubbling up and double click event firing on normal clicks
+                  e.preventDefault();
+                  fetchData(tab.id);
+                }}
                 onDoubleClick={() => renameTab(tab.id, tab.name)}
                 title="Doppelklick zum Umbenennen"
-                className={`px-5 py-3 font-bold text-[15px] whitespace-nowrap transition-all border-b-2 -mb-[1px] rounded-t-xl hover:bg-slate-50 ${
+                className={`px-5 py-3 font-bold text-[15px] whitespace-nowrap transition-all border-b-2 -mb-[1px] rounded-t-xl hover:bg-slate-50 flex items-center gap-2 cursor-pointer ${
                   activeTabId === tab.id 
                     ? "border-primary text-primary" 
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
                 {tab.name}
+                <Edit2 
+                  onClick={(e) => { e.stopPropagation(); renameTab(tab.id, tab.name); }} 
+                  className={`w-3.5 h-3.5 transition-opacity ${activeTabId === tab.id ? 'opacity-100 hover:text-primary-hover' : 'opacity-0 group-hover/tab:opacity-100'}`} 
+                />
               </button>
               
               {/* Tab Delete Icon */}
@@ -558,9 +604,9 @@ export default function Home() {
       </div>
       
       <main className="max-w-[1100px] mx-auto px-5 pb-20">
-        <div className="flex justify-start mb-8 animate-in slide-in-from-left-4 fade-in duration-300">
-          <button onClick={() => addSection(null)} className="bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 px-5 py-3 rounded-xl font-bold transition-all hover:shadow-lg hover:-translate-y-0.5 flex gap-2 items-center">
-            <span className="text-xl leading-none font-black">+</span> Neue Sektion in "{tabs.find(t=>t.id === activeTabId)?.name}"
+        <div className="flex justify-end mb-8 animate-in slide-in-from-right-4 fade-in duration-300">
+          <button onClick={() => addSection(null)} className="text-primary hover:bg-slate-100 px-4 py-2 rounded-lg font-medium transition-colors flex gap-2 items-center text-sm border border-slate-200">
+            <span className="text-lg leading-none font-bold">+</span> Abschnitt einfügen
           </button>
         </div>
 
@@ -568,7 +614,7 @@ export default function Home() {
           <div className="text-center py-20 px-5 bg-white border border-dashed border-slate-300 rounded-3xl">
             <h3 className="text-xl font-bold text-slate-700 mb-2">Noch ziemlich leer hier!</h3>
             <p className="text-slate-500 max-w-md mx-auto line-clamp-3">
-              Lege über den blauen Button oben eine "+ Neue Sektion" an, um mit dem Speichern deiner Links in diesem Reiter zu beginnen.
+              Klicke oben rechts auf &quot;+ Abschnitt einfügen&quot;, um mit dem Speichern deiner Links in diesem Reiter zu beginnen.
             </p>
           </div>
         )}
@@ -591,6 +637,14 @@ export default function Home() {
           ))}
         </ReactSortable>
       </main>
+      {/* Prompt Modal */}
+      <PromptModal
+        isOpen={promptData.isOpen}
+        title={promptData.title}
+        initialValue={promptData.initialValue}
+        onConfirm={promptData.onConfirm}
+        onCancel={closePrompt}
+      />
     </div>
   );
 }

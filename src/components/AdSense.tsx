@@ -8,15 +8,12 @@ export function AdSense({ pId }: { pId: string }) {
 
   useEffect(() => {
     // Check initial consent state on load
-    if (localStorage.getItem("cookie-consent") === "accepted") {
-      setConsentGranted(true);
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConsentGranted(localStorage.getItem("cookie-consent") === "accepted");
     
     // Listen to custom event dispatched when user accepts cookies in the banner
     const handleConsent = () => {
-      if (localStorage.getItem("cookie-consent") === "accepted") {
-        setConsentGranted(true);
-      }
+      setConsentGranted(localStorage.getItem("cookie-consent") === "accepted");
     };
     
     window.addEventListener("consent-changed", handleConsent);
