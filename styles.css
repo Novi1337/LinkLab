@@ -65,3 +65,4 @@ h1{font-size:32px;margin:0 0 30px;font-weight:600; color: var(--primary);}
 @media (max-width:560px){
   .links-list{grid-template-columns: 1fr;}
 }
+.section-header { cursor: move; } .sortable-ghost { opacity: 0.4; }

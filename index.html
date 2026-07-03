@@ -3,26 +3,27 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>LinkLib - Your Link Library</title>
+  <title data-i18n="title">LinkLib - Your Link Library</title>
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body>
   <div id="root">
     <!-- Landing / Login Screen -->
     <div id="login-screen" class="screen hero">
       <div class="hero-inner">
-        <h1>LinkLib - Your Link Library</h1>
+        <h1 data-i18n="title">LinkLib - Your Link Library</h1>
         
         <div class="auth-card">
           <div class="tabs">
-            <button class="tab active" id="tab-login" type="button">Login</button>
-            <button class="tab" id="tab-register" type="button">Register</button>
+            <button class="tab active" id="tab-login" type="button" data-i18n="loginTab">Login</button>
+            <button class="tab" id="tab-register" type="button" data-i18n="registerTab">Register</button>
           </div>
           
           <form id="login-form" class="auth-form">
-            <input id="login-email" type="email" placeholder="E-Mail" required />
-            <input id="login-password" type="password" placeholder="Passwort" required />
-            <button type="submit" class="primary" id="auth-submit-btn">Bestätigen</button>
+            <input id="login-email" type="email" placeholder="E-Mail" required data-i18n-placeholder="emailPlaceholder" />
+            <input id="login-password" type="password" placeholder="Passwort" required data-i18n-placeholder="passwordPlaceholder" />
+            <button type="submit" class="primary" id="auth-submit-btn" data-i18n="submitLogin">Bestätigen</button>
           </form>
         </div>
       </div>
@@ -36,13 +37,13 @@
         </div>
         <div class="user-actions">
           <span id="user-email"></span>
-          <button id="logout-btn" class="secondary">Logout</button>
+          <button id="logout-btn" class="secondary" data-i18n="logoutBtn">Logout</button>
         </div>
       </header>
 
       <main class="app-main">
         <div class="app-top">
-          <button id="new-section-btn" class="primary">＋ Neue Sektion</button>
+          <button id="new-section-btn" class="primary" data-i18n="newSectionBtn">＋ Neue Sektion</button>
         </div>
 
         <!-- Sections wrapper -->

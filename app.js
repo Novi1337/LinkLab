@@ -1,4 +1,61 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+  // i18n translations
+  const translations = {
+    en: {
+      title: 'LinkLib - Your Link Library',
+      loginTab: 'Login',
+      registerTab: 'Register',
+      emailPlaceholder: 'Email',
+      passwordPlaceholder: 'Password',
+      submitLogin: 'Login',
+      submitRegister: 'Register',
+      logoutBtn: 'Logout',
+      newSectionBtn: '+ New Section',
+      fillFieldsAlert: 'Please fill out all fields.',
+      registerSuccessAlert: 'Successfully registered! You will now be logged in.',
+      newSectionPrompt: 'What should the new section be called?',
+      linkInputPlaceholder: 'https://...',
+      addLinkBtn: 'Add Link'
+    },
+    de: {
+      title: 'LinkLib - Deine Link Bibliothek',
+      loginTab: 'Anmelden',
+      registerTab: 'Registrieren',
+      emailPlaceholder: 'E-Mail',
+      passwordPlaceholder: 'Passwort',
+      submitLogin: 'Anmelden',
+      submitRegister: 'Registrieren',
+      logoutBtn: 'Abmelden',
+      newSectionBtn: '+ Neue Sektion',
+      fillFieldsAlert: 'Bitte fülle alle Felder aus.',
+      registerSuccessAlert: 'Erfolgreich registriert! Du wirst nun eingeloggt.',
+      newSectionPrompt: 'Wie soll die neue Sektion heißen?',
+      linkInputPlaceholder: 'https://...',
+      addLinkBtn: 'Link Hinzufügen'
+    }
+  };
+
+  const userLang = navigator.language || navigator.userLanguage;
+  const currentLang = userLang.startsWith('de') ? 'de' : 'en';
+
+  function __i18n(key) {
+    return translations[currentLang][key] || translations['en'][key];
+  }
+
+  function applyLanguage() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if(translations[currentLang][key]) el.textContent = translations[currentLang][key];
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      if(translations[currentLang][key]) el.placeholder = translations[currentLang][key];
+    });
+  }
+
+  applyLanguage();
+
   const loginScreen = document.getElementById('login-screen');
   const appScreen = document.getElementById('app-screen');
   const loginForm = document.getElementById('login-form');
@@ -16,14 +73,14 @@ document.addEventListener('DOMContentLoaded', () => {
     tabLogin.classList.add('active');
     tabRegister.classList.remove('active');
     // We could change button text or form fields if needed
-    authSubmitBtn.textContent = 'Login';
+    authSubmitBtn.textContent = __i18n('submitLogin');
   });
 
   tabRegister.addEventListener('click', () => {
     isLoginMode = false;
     tabRegister.classList.add('active');
     tabLogin.classList.remove('active');
-    authSubmitBtn.textContent = 'Registrieren';
+    authSubmitBtn.textContent = __i18n('submitRegister');
   });
 
   // Handle Form Submission
@@ -33,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const password = document.getElementById('login-password').value;
 
     if (!email || !password) {
-      alert('Bitte fülle alle Felder aus.');
+      alert(__i18n('fillFieldsAlert'));
       return;
     }
 
@@ -43,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       // Simulate Register
       console.log('Registering with', email);
-      alert('Erfolgreich registriert! Du wirst nun eingeloggt.');
+      alert(__i18n('registerSuccessAlert'));
     }
 
     // Switch to app screen
@@ -67,8 +124,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const sectionsContainer = document.getElementById('sections');
   let sectionCounter = 0;
 
+  // Initialize drag & drop for sections
+  Sortable.create(sectionsContainer, {
+    animation: 150,
+    handle: '.section-header', // drag handle
+    ghostClass: 'sortable-ghost'
+  });
+
+
   newSectionBtn.addEventListener('click', () => {
-    const sectionName = prompt('Wie soll die neue Sektion heißen?');
+    const sectionName = prompt(__i18n('newSectionPrompt'));
     if (!sectionName || sectionName.trim() === '') return;
 
     sectionCounter++;
@@ -81,8 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
         <h3>${sectionName.trim()}</h3>
       </div>
       <form class="form-inline add-link-form" data-target="${sectionId}">
-        <input type="url" placeholder="https://..." required />
-        <button type="submit" class="primary btn-small">Link Hinzufügen</button>
+        <input type="url" placeholder="${__i18n('linkInputPlaceholder')}" required />
+        <button type="submit" class="primary btn-small">${__i18n('addLinkBtn')}</button>
       </form>
       <ul class="links-list" id="${sectionId}"></ul>
     `;
