@@ -41,9 +41,9 @@ async function authHeader(): Promise<Record<string, string>> {
 }
 
 export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged }: AccountModalProps) {
-  // Abo-Zustand
+  // Abo-Zustand (subLoading startet true, da beim Mount sofort geladen wird)
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
-  const [subLoading, setSubLoading] = useState(false);
+  const [subLoading, setSubLoading] = useState(true);
   const [subError, setSubError] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -61,12 +61,12 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
   const [deleteError, setDeleteError] = useState("");
 
   const loadSubscription = useCallback(async () => {
-    setSubLoading(true);
-    setSubError("");
+    // Kein synchrones setState vor dem ersten await - vermeidet Render-Kaskaden im Effect
     try {
       const res = await fetch("/api/account/subscription", { headers: await authHeader() });
       if (!res.ok) throw new Error();
       setSubscription(await res.json());
+      setSubError("");
     } catch {
       setSubError("Abo-Details konnten nicht geladen werden.");
     } finally {
@@ -76,17 +76,15 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
 
   useEffect(() => {
     if (!isOpen) return;
-    // Beim Öffnen: frische Daten laden und alle Bestätigungs-/Statusanzeigen zurücksetzen
-    setConfirmCancel(false);
-    setConfirmDelete(false);
-    setDeleteError("");
-    setPasswordMessage(null);
-    setNewPassword("");
-    setRepeatPassword("");
-    loadSubscription();
-    supabase.auth.getUser().then(({ data }) => {
-      setHasPasswordLogin(Boolean(data.user?.identities?.some((i) => i.provider === "email")));
-    });
+    // Daten beim Öffnen laden - via setTimeout(0) entkoppelt, damit kein setState
+    // synchron im Effect-Body läuft (react-hooks/set-state-in-effect).
+    const t = setTimeout(() => {
+      loadSubscription();
+      supabase.auth.getUser().then(({ data }) => {
+        setHasPasswordLogin(Boolean(data.user?.identities?.some((i) => i.provider === "email")));
+      });
+    }, 0);
+    return () => clearTimeout(t);
   }, [isOpen, loadSubscription]);
 
   useEffect(() => {
@@ -123,7 +121,7 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
   const openBillingPortal = async () => {
     const res = await fetch("/api/stripe/portal", { method: "POST", headers: await authHeader() });
     const data = await res.json().catch(() => null);
-    if (res.ok && data?.url) window.location.href = data.url;
+    if (res.ok && data?.url) window.location.assign(data.url);
     else setSubError("Zahlungsportal konnte nicht geöffnet werden.");
   };
 

@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 import { isIP } from 'net';
 import { lookup } from 'dns/promises';
 import { decodeHTML } from 'entities';
+import { getUserFromRequest } from '@/lib/stripe';
 
 // Manche Seiten (z. B. Vimeo) kodieren HTML-Entities in ihren Meta-Tags doppelt
 // ("&amp;rsquo;" statt "&rsquo;"), wodurch nach dem normalen HTML-Parsing noch
@@ -214,6 +215,13 @@ async function fetchHtmlAsBot(startUrl: URL, userAgent: string): Promise<{ html:
 }
 
 export async function GET(request: Request) {
+  // Nur für eingeloggte Nutzer: verhindert, dass die Route als anonymer
+  // Fetch-Proxy (Scraping/Traffic-Amplification) missbraucht wird.
+  const user = await getUserFromRequest(request);
+  if (!user) {
+    return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
 
@@ -254,16 +262,22 @@ export async function GET(request: Request) {
     let description = cleanText(rawDescription.replace(/\s+/g, ' ').trim());
     if (!description && provider) description = provider.fallbackDescription(oembed || {});
 
-    let image = oembed?.thumbnail_url || $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content');
+    let image: string | null =
+      oembed?.thumbnail_url || $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content') || null;
     if (!image) {
       // "data:," ist ein leerer Platzhalter-Favicon-Trick vieler Seiten - kein echtes Bild
       const favicon = $('link[rel="icon"]').attr('href') || $('link[rel="shortcut icon"]').attr('href');
       if (favicon && favicon !== 'data:,' && !favicon.startsWith('data:,')) {
-        try {
-          image = new URL(favicon, url).href;
-        } catch {
-          // invalid url
-        }
+        image = favicon;
+      }
+    }
+    // Relative Bild-/Favicon-Pfade gegen die FINALE URL (nach Redirects) auflösen,
+    // nicht gegen die ursprünglich angefragte - sonst zeigen sie ins Leere.
+    if (image) {
+      try {
+        image = new URL(image, result.finalUrl).href;
+      } catch {
+        image = null;
       }
     }
 

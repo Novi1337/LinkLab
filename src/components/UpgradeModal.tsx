@@ -41,7 +41,7 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
       if (!res.ok || !data.url) throw new Error(data.error || "Checkout fehlgeschlagen");
 
       // Weiterleitung zur gehosteten Stripe-Checkout-Seite
-      window.location.href = data.url;
+      window.location.assign(data.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unbekannter Fehler");
       setLoadingPlan(null);

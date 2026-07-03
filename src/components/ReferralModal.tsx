@@ -29,7 +29,7 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
   const [copied, setCopied] = useState(false);
 
   const loadInfo = useCallback(async () => {
-    setError(null);
+    // Kein synchrones setState vor dem ersten await - vermeidet Render-Kaskaden im Effect
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -37,6 +37,7 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
       const res = await fetch("/api/referral", { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error();
       setInfo(await res.json());
+      setError(null);
     } catch {
       setError("Dein Einladungslink konnte nicht geladen werden. Bitte versuche es erneut.");
     }
@@ -44,8 +45,10 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
 
   useEffect(() => {
     if (!isOpen) return;
-    setCopied(false);
-    loadInfo();
+    // Via setTimeout(0) entkoppelt, damit kein setState synchron im Effect-Body läuft.
+    // "copied" muss nicht zurückgesetzt werden: der Parent mountet das Modal bei jedem Öffnen neu.
+    const t = setTimeout(loadInfo, 0);
+    return () => clearTimeout(t);
   }, [isOpen, loadInfo]);
 
   useEffect(() => {

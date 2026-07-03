@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import Script from "next/script";
 import { BookmarkletLink, CodeSnippet } from "./widgets";
 
@@ -19,12 +20,12 @@ export default function SaveButtonPage() {
       <Script src="/save-button.js" strategy="lazyOnload" />
 
       <header className="max-w-shell mx-auto flex justify-between items-center px-5 py-4">
-        <a href="/">
+        <Link href="/">
           <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[26px] w-auto" />
-        </a>
-        <a href="/" className="text-sm font-semibold text-primary hover:text-primary-hover transition-colors">
+        </Link>
+        <Link href="/" className="text-sm font-semibold text-primary hover:text-primary-hover transition-colors">
           Zur App →
-        </a>
+        </Link>
       </header>
 
       <main className="max-w-2xl mx-auto px-5 pt-8 pb-24 flex flex-col gap-10">

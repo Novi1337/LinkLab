@@ -57,7 +57,7 @@ export function BookmarkletLink() {
       title="Ziehe mich in deine Lesezeichenleiste"
       className="inline-flex items-center gap-2 bg-white border border-slate-200 text-brand-dark px-5 py-3 rounded-xl font-bold shadow-sm hover:shadow-md transition-all cursor-grab select-none"
     >
-      <img src="/linklib-icon.svg" alt="" className="w-5 h-5" />
+      <img src="/Favicon.svg" alt="" className="w-5 h-5" />
       Auf LinkLib speichern
     </a>
   );

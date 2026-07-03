@@ -10,6 +10,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { IncognitoPasswordModal } from "@/components/IncognitoPasswordModal";
 import { ReferralModal } from "@/components/ReferralModal";
+import { AccountModal } from "@/components/AccountModal";
 import { LegalFooter } from "@/components/LegalFooter";
 import { isOwnerClientUser } from "@/lib/ownerClient";
 
@@ -98,6 +99,7 @@ export default function Home() {
   const [ownerPremium, setOwnerPremium] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [referralModalOpen, setReferralModalOpen] = useState(false);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
   const referralPremiumActive = !!referralUntil && new Date(referralUntil) > new Date();
   const isPremium = ownerPremium || !!premiumPlan || referralPremiumActive;
 
@@ -145,10 +147,15 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     if (params.has("checkout")) {
       if (params.get("checkout") === "success") {
-        fetchPremiumStatus();
+        // Asynchron laden (kein Direktaufruf im Effect-Body, vermeidet setState-Kaskaden);
+        // nach 3s erneut, da der Stripe-Webhook später eintreffen kann als der Redirect.
+        const immediate = setTimeout(fetchPremiumStatus, 0);
         const retry = setTimeout(fetchPremiumStatus, 3000);
         window.history.replaceState({}, "", window.location.pathname);
-        return () => clearTimeout(retry);
+        return () => {
+          clearTimeout(immediate);
+          clearTimeout(retry);
+        };
       }
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -164,7 +171,7 @@ export default function Home() {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    if (res.ok && data.url) window.location.href = data.url;
+    if (res.ok && data.url) window.location.assign(data.url);
   };
 
   useEffect(() => {
@@ -435,7 +442,7 @@ export default function Home() {
     if (!isPremium) {
       openConfirm(
         "Premium-Funktion",
-        "The privacy feature for tabs and links is only available with the premium subscription.",
+        "Die Privatsphäre-Funktion für Reiter und Links ist nur mit dem Premium-Abo verfügbar.",
         () => {
           closeConfirm();
           setUpgradeModalOpen(true);
@@ -581,8 +588,8 @@ export default function Home() {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) return;
 
-    // Optimistic Update
-    const tempId = Date.now().toString();
+    // Optimistic Update (randomUUID statt Date.now: rein & kollisionsfrei bei schnellen Mehrfach-Adds)
+    const tempId = crypto.randomUUID();
     const newLink: Link = { id: tempId, url: fullUrl, title: domain, description: "Lade Metadaten...", image: null, initial, domain };
     
     setSections(prev => updateSectionInState(prev, sectionId, s => ({ ...s, links: [newLink, ...s.links] })));
@@ -599,7 +606,9 @@ export default function Home() {
 
     // Fetch Metadata
     try {
-      const res = await fetch(`/api/metadata?url=${encodeURIComponent(fullUrl)}`);
+      const res = await fetch(`/api/metadata?url=${encodeURIComponent(fullUrl)}`, {
+        headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
+      });
       if (!res.ok) throw new Error("API Failure");
       const metaData = await res.json();
       
@@ -918,7 +927,13 @@ export default function Home() {
             </button>
           )}
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
-          <span className="hidden sm:inline-block font-semibold">{userEmail}</span>
+          <button
+            onClick={() => setAccountModalOpen(true)}
+            title="Konto verwalten (Abo, Passwort, Löschung)"
+            className="hidden sm:inline-block font-semibold hover:text-primary transition-colors"
+          >
+            {userEmail}
+          </button>
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
           <button onClick={handleLogout} className="text-slate-500 font-bold hover:text-danger transition-colors px-2">
             Logout
@@ -1072,8 +1087,17 @@ export default function Home() {
       />
       {/* Premium Upgrade Modal */}
       <UpgradeModal isOpen={upgradeModalOpen} onClose={() => setUpgradeModalOpen(false)} />
-      {/* Freunde einladen (Empfehlungsprogramm) */}
-      <ReferralModal isOpen={referralModalOpen} onClose={() => setReferralModalOpen(false)} />
+      {/* Freunde einladen (Empfehlungsprogramm) - bei jedem Öffnen frisch gemountet */}
+      {referralModalOpen && <ReferralModal isOpen onClose={() => setReferralModalOpen(false)} />}
+      {/* Konto verwalten (Abo, Passwort, Account-Löschung) - bei jedem Öffnen frisch gemountet */}
+      {accountModalOpen && (
+        <AccountModal
+          isOpen
+          userEmail={userEmail}
+          onClose={() => setAccountModalOpen(false)}
+          onSubscriptionChanged={fetchPremiumStatus}
+        />
+      )}
       {/* Inkognito Passwort Modal */}
       <IncognitoPasswordModal
         isOpen={incognitoModal.isOpen}

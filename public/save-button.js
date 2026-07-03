@@ -29,7 +29,7 @@
     if (document.currentScript && document.currentScript.src) {
       ORIGIN = new URL(document.currentScript.src).origin;
     }
-  } catch (e) { /* Fallback auf Produktions-Origin */ }
+  } catch { /* Fallback auf Produktions-Origin */ }
 
   function resolveUrl(btn) {
     var explicit = btn.getAttribute("data-url");
@@ -78,7 +78,7 @@
     btn.textContent = "";
 
     var icon = document.createElement("img");
-    icon.src = ORIGIN + "/linklib-icon.svg";
+    icon.src = ORIGIN + "/Favicon.svg";
     icon.alt = "";
     icon.style.cssText = "width:" + (size - 12) + "px;height:" + (size - 12) + "px;display:block;border:0;margin:0;padding:0;";
 

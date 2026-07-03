@@ -186,7 +186,9 @@ function SaveWidget() {
 
       // … dann Titel/Beschreibung/Bild über die Metadata-API nachziehen
       try {
-        const res = await fetch(`/api/metadata?url=${encodeURIComponent(fullUrl)}`);
+        const res = await fetch(`/api/metadata?url=${encodeURIComponent(fullUrl)}`, {
+          headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
+        });
         if (!res.ok) throw new Error("API Failure");
         const metaData = await res.json();
         await supabase.from("links").update({

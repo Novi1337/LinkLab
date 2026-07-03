@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Archivierter statischer Prototyp - nicht Teil der App
+    "legacy-html/**",
   ]),
 ]);
 
