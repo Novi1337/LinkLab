@@ -11,6 +11,7 @@ import { UpgradeModal } from "@/components/UpgradeModal";
 import { IncognitoPasswordModal } from "@/components/IncognitoPasswordModal";
 import { ReferralModal } from "@/components/ReferralModal";
 import { LegalFooter } from "@/components/LegalFooter";
+import { isOwnerClientUser } from "@/lib/ownerClient";
 
 type Link = {
   id: string;
@@ -94,10 +95,11 @@ export default function Home() {
   // Zusätzlich kann zeitlich begrenztes Premium aus dem Empfehlungsprogramm aktiv sein.
   const [premiumPlan, setPremiumPlan] = useState<string | null>(null);
   const [referralUntil, setReferralUntil] = useState<string | null>(null);
+  const [ownerPremium, setOwnerPremium] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [referralModalOpen, setReferralModalOpen] = useState(false);
   const referralPremiumActive = !!referralUntil && new Date(referralUntil) > new Date();
-  const isPremium = !!premiumPlan || referralPremiumActive;
+  const isPremium = ownerPremium || !!premiumPlan || referralPremiumActive;
 
   // Inkognito-Modus (Premium): entsperrt = private Reiter sichtbar.
   // Der Hash des Inkognito-Passworts wird zusammen mit dem Premium-Status geladen.
@@ -112,12 +114,14 @@ export default function Home() {
   const fetchPremiumStatus = useCallback(async () => {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) return;
+    const isOwner = isOwnerClientUser(sessionData.session.user.id, sessionData.session.user.email || null);
+    setOwnerPremium(isOwner);
     const { data } = await supabase
       .from("profiles")
       .select("premium_plan, incognito_password_hash, referral_premium_until")
       .eq("id", sessionData.session.user.id)
       .maybeSingle();
-    setPremiumPlan(data?.premium_plan || "");
+    setPremiumPlan(isOwner ? "owner" : (data?.premium_plan || ""));
     setReferralUntil(data?.referral_premium_until || null);
     setIncognitoHash(data?.incognito_password_hash || null);
   }, []);
@@ -372,6 +376,7 @@ export default function Home() {
         setActiveTabId(null);
         setPremiumPlan(null);
         setReferralUntil(null);
+        setOwnerPremium(false);
         setIncognitoUnlocked(false);
         setIncognitoHash(null);
       }
@@ -889,17 +894,19 @@ export default function Home() {
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
           {isPremium ? (
             <button
-              onClick={premiumPlan ? openBillingPortal : () => setUpgradeModalOpen(true)}
+              onClick={ownerPremium ? undefined : (premiumPlan ? openBillingPortal : () => setUpgradeModalOpen(true))}
               title={
-                premiumPlan === "lifetime"
+                ownerPremium
+                  ? "Owner-Modus: Premium dauerhaft aktiv"
+                  : premiumPlan === "lifetime"
                   ? "Lebenslanger Premium-Zugang"
                   : premiumPlan
                     ? "Premium-Abo verwalten"
                     : `Premium über Empfehlungsprogramm bis ${referralUntil ? new Date(referralUntil).toLocaleDateString("de-DE") : ""}`
               }
-              className="font-bold text-amber-500 hover:text-amber-600 transition-colors flex items-center gap-1"
+              className={`font-bold transition-colors flex items-center gap-1 ${ownerPremium ? "text-emerald-600" : "text-amber-500 hover:text-amber-600"}`}
             >
-              ★ Premium
+              ★ {ownerPremium ? "Owner" : "Premium"}
             </button>
           ) : (
             <button

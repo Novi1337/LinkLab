@@ -78,7 +78,7 @@
     btn.textContent = "";
 
     var icon = document.createElement("img");
-    icon.src = ORIGIN + "/favicon.ico";
+    icon.src = ORIGIN + "/linklib-icon.svg";
     icon.alt = "";
     icon.style.cssText = "width:" + (size - 12) + "px;height:" + (size - 12) + "px;display:block;border:0;margin:0;padding:0;";
 
@@ -88,11 +88,11 @@
       "justify-content:center",
       "gap:6px",
       "height:" + size + "px",
-      label ? "padding:0 12px 0 10px" : "width:" + size + "px",
+      label ? "padding:0 12px 0 10px" : "padding:0;width:auto",
       "border-radius:" + Math.round(size / 2) + "px",
-      "background:#ffffff",
-      "border:1px solid #e2e8f0",
-      "box-shadow:0 1px 3px rgba(15,23,42,.12)",
+      label ? "background:#ffffff" : "background:transparent",
+      label ? "border:1px solid #e2e8f0" : "border:0",
+      label ? "box-shadow:0 1px 3px rgba(15,23,42,.12)" : "box-shadow:none",
       "cursor:pointer",
       "text-decoration:none",
       "font:600 " + Math.max(11, Math.round(size * 0.4)) + "px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif",

@@ -12,6 +12,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "LinkLib - Deine kostenlose Link-Bibliothek | Lesezeichen organisieren",
   description: "Organisiere, speichere und verwalte deine Lieblings-Websites, Bookmarks und Links übersichtlich in Ordnern. Komplett kostenlos und sicher in der Cloud.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/linklib-icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/linklib-icon.svg", type: "image/svg+xml" }],
+    shortcut: ["/linklib-icon.svg"],
+  },
   keywords: ["Lesezeichen verwalten", "Links speichern", "Bookmark Manager", "Link-Bibliothek", "Ordner System für Links", "Cloud Bookmarks"],
   authors: [{ name: "LinkLib" }],
   creator: "LinkLib",

@@ -60,7 +60,6 @@ export default function SaveButtonPage() {
             diese Seite in deiner Bibliothek ab:
           </p>
           <div className="flex items-center gap-4 bg-slate-50 border border-dashed border-slate-300 rounded-2xl p-6 justify-center">
-            <a href="/save" className="linklib-save-button"></a>
             <a href="/save" className="linklib-save-button" data-label="Speichern"></a>
           </div>
         </section>
