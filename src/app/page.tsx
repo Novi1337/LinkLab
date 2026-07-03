@@ -12,6 +12,7 @@ import { IncognitoPasswordModal } from "@/components/IncognitoPasswordModal";
 import { ReferralModal } from "@/components/ReferralModal";
 import { AccountModal } from "@/components/AccountModal";
 import { LegalFooter } from "@/components/LegalFooter";
+import { LandingSections } from "@/components/LandingSections";
 import { isOwnerClientUser } from "@/lib/ownerClient";
 
 type Link = {
@@ -808,14 +809,21 @@ export default function Home() {
 
   if (!isLoggedIn) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-5 bg-[url('/bg.svg')] bg-[length:40px_40px] bg-center animate-in fade-in duration-500 font-sans text-brand-dark">
+      <div className="relative min-h-screen bg-[url('/bg.svg')] bg-[length:40px_40px] bg-center animate-in fade-in duration-500 font-sans text-brand-dark">
         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm -z-10"></div>
-        {/* max-w-shell-golden = max-w-shell / φ² (Goldener Schnitt zum Hauptcontainer) */}
-        <div className="w-full max-w-shell-golden text-center z-10">
-          <div className="flex items-center justify-center mb-8 drop-shadow-sm">
-            <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[80px] w-auto max-w-full" />
-          </div>
-          <div className="bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/50">
+        <div className="flex items-center justify-center min-h-screen p-5">
+          {/* max-w-shell-golden = max-w-shell / φ² (Goldener Schnitt zum Hauptcontainer) */}
+          <div className="w-full max-w-shell-golden text-center z-10">
+            <div className="flex items-center justify-center mb-6 drop-shadow-sm">
+              <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[80px] w-auto max-w-full" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold mb-2">
+              Deine kostenlose Link-Bibliothek in der Cloud
+            </h1>
+            <p className="text-slate-500 font-medium mb-8">
+              Lesezeichen speichern, in Ordnern organisieren und von jedem Gerät abrufen.
+            </p>
+            <div className="bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/50">
             <div className="flex gap-2 mb-6 border-b border-slate-200/60 pb-0">
               <button
                 className={`flex-1 pb-3 font-bold transition-all border-b-2 text-nav ${
@@ -882,8 +890,10 @@ export default function Home() {
               </button>
             </div>
           </div>
-          <LegalFooter className="mt-6" />
+          </div>
         </div>
+        <LandingSections />
+        <LegalFooter className="pb-10" />
       </div>
     );
   }
