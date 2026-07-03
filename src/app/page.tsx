@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { ReactSortable } from "react-sortablejs";
 import { supabase } from "@/lib/supabaseClient";
 import { AdBanner } from "@/components/AdBanner";
-import { Edit2 } from "lucide-react";
+import { Edit2, Eye, EyeOff } from "lucide-react";
 import { PromptModal } from "@/components/PromptModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { IncognitoPasswordModal } from "@/components/IncognitoPasswordModal";
 
 type Link = {
   id: string;
@@ -33,6 +34,7 @@ type Tab = {
   id: string;
   name: string;
   color?: string | null;
+  is_private?: boolean;
 };
 
 // Kuratierte Akzentfarben, mit denen Nutzer einzelne Tabs/Sektionen markieren können,
@@ -60,6 +62,16 @@ function truncateDescription(text?: string | null): string {
   return `${(lastSpace > 40 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
+// SHA-256-Hash (hex) für das Inkognito-Passwort. Das Klartext-Passwort verlässt
+// nie den Browser - in der DB liegt nur der mit der User-ID gesalzene Hash.
+async function sha256Hex(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export default function Home() {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -81,15 +93,26 @@ export default function Home() {
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const isPremium = !!premiumPlan;
 
+  // Inkognito-Modus (Premium): entsperrt = private Reiter sichtbar.
+  // Der Hash des Inkognito-Passworts wird zusammen mit dem Premium-Status geladen.
+  const [incognitoUnlocked, setIncognitoUnlocked] = useState(false);
+  const [incognitoHash, setIncognitoHash] = useState<string | null>(null);
+  const [incognitoModal, setIncognitoModal] = useState<{
+    isOpen: boolean;
+    mode: "setup" | "unlock";
+    error: string | null;
+  }>({ isOpen: false, mode: "unlock", error: null });
+
   const fetchPremiumStatus = useCallback(async () => {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) return;
     const { data } = await supabase
       .from("profiles")
-      .select("premium_plan")
+      .select("premium_plan, incognito_password_hash")
       .eq("id", sessionData.session.user.id)
       .maybeSingle();
     setPremiumPlan(data?.premium_plan || "");
+    setIncognitoHash(data?.incognito_password_hash || null);
   }, []);
 
   // Nach Rückkehr von der Stripe-Checkout-Seite: Status neu laden und URL bereinigen.
@@ -239,11 +262,17 @@ export default function Home() {
     setTabs(currentTabs);
     
     if (!loadTab && currentTabs.length > 0) {
-      loadTab = currentTabs[0].id;
+      // Standardmäßig den ersten ÖFFENTLICHEN Reiter laden - private Reiter
+      // dürfen ohne entsperrten Inkognito-Modus nie automatisch aktiv werden.
+      const firstPublic = currentTabs.find((t) => !t.is_private);
+      loadTab = firstPublic ? firstPublic.id : null;
     }
     
-    if (loadTab) {
-      setActiveTabId(loadTab);
+    setActiveTabId(loadTab);
+
+    if (!loadTab) {
+      setSections([]);
+      return;
     }
 
     // 2. Fetch Sections & Links
@@ -303,6 +332,8 @@ export default function Home() {
         setTabs([]);
         setActiveTabId(null);
         setPremiumPlan(null);
+        setIncognitoUnlocked(false);
+        setIncognitoHash(null);
       }
     });
     return () => subscription.unsubscribe();
@@ -341,8 +372,91 @@ export default function Home() {
 
       const remaining = tabs.filter(t => t.id !== tabId);
       setTabs(remaining);
-      fetchData(remaining.length > 0 ? remaining[0].id : null);
+      // Nächsten Tab wählen, der im aktuellen Modus auch sichtbar ist
+      const nextTab = remaining.find(t => !t.is_private || incognitoUnlocked) || null;
+      fetchData(nextTab ? nextTab.id : null);
     });
+  };
+
+  // Inkognito: Reiter privat/öffentlich schalten (nur im entsperrten Modus bedienbar)
+  const toggleTabPrivacy = async (tab: Tab) => {
+    const newValue = !tab.is_private;
+    setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, is_private: newValue } : t));
+    await supabase.from("tabs").update({ is_private: newValue }).eq("id", tab.id);
+  };
+
+  // Klick auf das Auge in der Tab-Leiste: Premium-Check, dann sperren bzw. entsperren
+  const toggleIncognito = () => {
+    if (!isPremium) {
+      openConfirm(
+        "Premium-Funktion",
+        "The privacy feature for tabs and links is only available with the premium subscription.",
+        () => {
+          closeConfirm();
+          setUpgradeModalOpen(true);
+        },
+        "Upgrade"
+      );
+      return;
+    }
+
+    if (incognitoUnlocked) {
+      // Zurück in den öffentlichen Modus: private Reiter verschwinden sofort
+      setIncognitoUnlocked(false);
+      const activeTab = tabs.find(t => t.id === activeTabId);
+      if (activeTab?.is_private) {
+        const firstPublic = tabs.find(t => !t.is_private);
+        fetchData(firstPublic ? firstPublic.id : null);
+      }
+      return;
+    }
+
+    // Entsperren: Passwort abfragen - bzw. beim ersten Mal festlegen
+    setIncognitoModal({ isOpen: true, mode: incognitoHash ? "unlock" : "setup", error: null });
+  };
+
+  const submitIncognitoPassword = async (password: string) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    if (!userId) return;
+
+    const hash = await sha256Hex(`${userId}:${password}`);
+
+    if (incognitoModal.mode === "setup") {
+      // Erst updaten (Profil existiert evtl. schon durch Stripe), sonst neu anlegen -
+      // die Spaltenrechte erlauben Nutzern ausschließlich das Schreiben des Passwort-Hashes.
+      const { data: updated, error: updateError } = await supabase
+        .from("profiles")
+        .update({ incognito_password_hash: hash })
+        .eq("id", userId)
+        .select("id");
+
+      if (updateError) {
+        setIncognitoModal(prev => ({ ...prev, error: "Speichern fehlgeschlagen: " + updateError.message }));
+        return;
+      }
+
+      if (!updated || updated.length === 0) {
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert({ id: userId, incognito_password_hash: hash });
+        if (insertError) {
+          setIncognitoModal(prev => ({ ...prev, error: "Speichern fehlgeschlagen: " + insertError.message }));
+          return;
+        }
+      }
+
+      setIncognitoHash(hash);
+      setIncognitoUnlocked(true);
+      setIncognitoModal({ isOpen: false, mode: "setup", error: null });
+    } else {
+      if (hash === incognitoHash) {
+        setIncognitoUnlocked(true);
+        setIncognitoModal({ isOpen: false, mode: "unlock", error: null });
+      } else {
+        setIncognitoModal(prev => ({ ...prev, error: "Falsches Passwort." }));
+      }
+    }
   };
 
   // Auth Handlers
@@ -752,7 +866,7 @@ export default function Home() {
       {/* TABS Navigation */}
       <div className="max-w-shell mx-auto px-5 mb-0">
         <div className="flex gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar pb-[-1px] items-center pt-2">
-          {tabs.map((tab) => (
+          {tabs.filter((tab) => !tab.is_private || incognitoUnlocked).map((tab) => (
             <div key={tab.id} className="relative group/tab flex items-center shrink-0">
               <button 
                 onClick={(e) => {
@@ -778,6 +892,17 @@ export default function Home() {
                   style={{ backgroundColor: tab.color || "transparent" }}
                 />
                 {tab.name}
+                {incognitoUnlocked && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); toggleTabPrivacy(tab); }}
+                    title={tab.is_private ? "Reiter öffentlich machen" : "Reiter privat machen (nur im Inkognito-Modus sichtbar)"}
+                    className={`transition-opacity ${tab.is_private ? "opacity-100 text-slate-600 hover:text-brand-dark" : "opacity-0 group-hover/tab:opacity-100 text-slate-300 hover:text-slate-600"}`}
+                  >
+                    {tab.is_private ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </span>
+                )}
                 <Edit2 
                   onClick={(e) => { e.stopPropagation(); renameTab(tab.id, tab.name); }} 
                   className="w-3.5 h-3.5 transition-opacity opacity-0 group-hover/tab:opacity-100 hover:text-primary-hover"
@@ -807,6 +932,22 @@ export default function Home() {
             title="Neuen Reiter anlegen"
           >
             +
+          </button>
+          {/* Inkognito-Auge: immer sichtbar, ganz rechts auf Höhe der Reiter */}
+          <button
+            onClick={toggleIncognito}
+            title={
+              incognitoUnlocked
+                ? "Inkognito-Modus beenden (private Reiter ausblenden)"
+                : "Inkognito-Modus: private Reiter per Passwort einblenden"
+            }
+            className={`ml-auto shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+              incognitoUnlocked
+                ? "bg-slate-900 text-white shadow-md hover:bg-slate-700"
+                : "text-slate-400 hover:text-brand-dark hover:bg-slate-100"
+            }`}
+          >
+            {incognitoUnlocked ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         </div>
       </div>
@@ -864,6 +1005,14 @@ export default function Home() {
       />
       {/* Premium Upgrade Modal */}
       <UpgradeModal isOpen={upgradeModalOpen} onClose={() => setUpgradeModalOpen(false)} />
+      {/* Inkognito Passwort Modal */}
+      <IncognitoPasswordModal
+        isOpen={incognitoModal.isOpen}
+        mode={incognitoModal.mode}
+        error={incognitoModal.error}
+        onConfirm={submitIncognitoPassword}
+        onCancel={() => setIncognitoModal(prev => ({ ...prev, isOpen: false, error: null }))}
+      />
     </div>
   );
 }
