@@ -1,39 +1,41 @@
 import { MetadataRoute } from 'next'
  
+const base = 'https://www.getlinklib.com'
+
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
-      url: 'https://getlinklib.com',
+      url: base,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 1,
     },
     {
-      url: 'https://getlinklib.com/datenschutz',
+      url: `${base}/datenschutz`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.5,
     },
     {
-      url: 'https://getlinklib.com/impressum',
+      url: `${base}/impressum`,
       lastModified: new Date(),
       changeFrequency: 'yearly',
       priority: 0.3,
     },
     {
-      url: 'https://getlinklib.com/agb',
+      url: `${base}/agb`,
       lastModified: new Date(),
       changeFrequency: 'yearly',
       priority: 0.3,
     },
     {
-      url: 'https://getlinklib.com/widerruf',
+      url: `${base}/widerruf`,
       lastModified: new Date(),
       changeFrequency: 'yearly',
       priority: 0.3,
     },
     {
-      url: 'https://getlinklib.com/save-button',
+      url: `${base}/save-button`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.6,

@@ -37,6 +37,14 @@ export async function POST(request: Request) {
         const plan = session.metadata?.plan;
         if (!userId || !plan) break;
 
+        // Bestehendes Abo merken: Beim Upgrade auf Lifetime wird es danach beendet,
+        // damit der Kunde nicht weiter jährlich zahlt.
+        const { data: existing } = await supabaseAdmin
+          .from("profiles")
+          .select("stripe_subscription_id")
+          .eq("id", userId)
+          .maybeSingle();
+
         await supabaseAdmin.from("profiles").upsert(
           {
             id: userId,
@@ -47,6 +55,15 @@ export async function POST(request: Request) {
           },
           { onConflict: "id" }
         );
+
+        if (plan === "lifetime" && existing?.stripe_subscription_id) {
+          try {
+            await getStripe().subscriptions.cancel(existing.stripe_subscription_id);
+          } catch (err) {
+            // Abo existiert evtl. schon nicht mehr - Lifetime ist trotzdem aktiv
+            console.error("Altes Abo konnte nach Lifetime-Kauf nicht beendet werden:", err);
+          }
+        }
         break;
       }
 

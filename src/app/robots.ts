@@ -5,7 +5,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
+      disallow: ['/api/', '/save'],
     },
-    sitemap: 'https://getlinklib.com/sitemap.xml',
+    sitemap: 'https://www.getlinklib.com/sitemap.xml',
   }
 }

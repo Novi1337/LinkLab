@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 };
 
 const EMBED_SNIPPET = `<!-- LinkLib Save-Button -->
-<a href="https://getlinklib.com/save" class="linklib-save-button" data-label="Speichern"></a>
-<script async src="https://getlinklib.com/save-button.js"></script>`;
+<a href="https://www.getlinklib.com/save" class="linklib-save-button" data-label="Speichern"></a>
+<script async src="https://www.getlinklib.com/save-button.js"></script>`;
 
 export default function SaveButtonPage() {
   return (

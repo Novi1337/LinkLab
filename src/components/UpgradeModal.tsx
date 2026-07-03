@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-type Plan = "monthly" | "yearly" | "lifetime";
+type Plan = "premium" | "premium_plus" | "lifetime";
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -12,10 +12,29 @@ interface UpgradeModalProps {
 
 // Anzeige-Infos der Pläne. Die echten Preise/Price-IDs liegen ausschließlich
 // serverseitig in Stripe - hier stehen nur Beschriftungen fürs UI.
-const PLANS: { id: Plan; name: string; price: string; hint: string; highlight?: boolean }[] = [
-  { id: "monthly", name: "Monatlich", price: "2,99 €", hint: "pro Monat, jederzeit kündbar" },
-  { id: "yearly", name: "Jährlich", price: "24,99 €", hint: "pro Jahr - spare über 30 %", highlight: true },
-  { id: "lifetime", name: "Lifetime", price: "59,99 €", hint: "einmalig, für immer" },
+const PLANS: { id: Plan; name: string; price: string; hint: string; features: string[]; highlight?: boolean }[] = [
+  {
+    id: "premium",
+    name: "Premium",
+    price: "12 €",
+    hint: "pro Jahr, jederzeit kündbar",
+    features: ["Unbegrenzt Reiter, Abschnitte & Unterabschnitte", "Komplett werbefrei"],
+  },
+  {
+    id: "premium_plus",
+    name: "Premium+",
+    price: "24 €",
+    hint: "pro Jahr, jederzeit kündbar",
+    features: ["Alles aus Premium", "Inkognito-Modus: private Reiter mit Passwortschutz"],
+    highlight: true,
+  },
+  {
+    id: "lifetime",
+    name: "Lifetime",
+    price: "69 €",
+    hint: "einmalig, für immer",
+    features: ["Alle Premium+-Funktionen inkl. Inkognito", "Einmal zahlen, dauerhaft nutzen"],
+  },
 ];
 
 export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
@@ -61,7 +80,7 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
           <div>
             <h3 className="text-lg font-bold text-brand-dark m-0">LinkLib Premium</h3>
-            <p className="text-sm text-slate-500 m-0 mt-1">Nutze LinkLib komplett werbefrei.</p>
+            <p className="text-sm text-slate-500 m-0 mt-1">Werbefrei und unbegrenzt - mit Premium+ inklusive Inkognito-Modus.</p>
           </div>
           <button
             onClick={onClose}
@@ -92,6 +111,14 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
                   )}
                 </div>
                 <div className="text-xs text-slate-500">{plan.hint}</div>
+                <ul className="m-0 mt-1.5 p-0 list-none flex flex-col gap-0.5">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="text-xs text-slate-600 flex items-start gap-1.5">
+                      <span className="text-emerald-500 font-bold shrink-0">✓</span>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
               </div>
               <div className="font-bold text-primary whitespace-nowrap">
                 {loadingPlan === plan.id ? "Lädt…" : plan.price}

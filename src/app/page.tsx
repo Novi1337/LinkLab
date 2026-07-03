@@ -102,6 +102,9 @@ export default function Home() {
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const referralPremiumActive = !!referralUntil && new Date(referralUntil) > new Date();
   const isPremium = ownerPremium || !!premiumPlan || referralPremiumActive;
+  // Inkognito-Modus ist Premium+ und Lifetime vorbehalten -
+  // Basis-Premium und Referral-Premium enthalten ihn NICHT.
+  const hasIncognitoAccess = ownerPremium || premiumPlan === "premium_plus" || premiumPlan === "lifetime";
 
   // Inkognito-Modus (Premium): entsperrt = private Reiter sichtbar.
   // Der Hash des Inkognito-Passworts wird zusammen mit dem Premium-Status geladen.
@@ -437,12 +440,12 @@ export default function Home() {
     await supabase.from("tabs").update({ is_private: newValue }).eq("id", tab.id);
   };
 
-  // Klick auf das Auge in der Tab-Leiste: Premium-Check, dann sperren bzw. entsperren
+  // Klick auf das Auge in der Tab-Leiste: Premium+-Check, dann sperren bzw. entsperren
   const toggleIncognito = () => {
-    if (!isPremium) {
+    if (!hasIncognitoAccess) {
       openConfirm(
-        "Premium-Funktion",
-        "Die Privatsphäre-Funktion für Reiter und Links ist nur mit dem Premium-Abo verfügbar.",
+        "Premium+-Funktion",
+        "Private Reiter mit Inkognito-Modus gibt es im Premium+-Abo (24 €/Jahr) oder mit Lifetime-Zugang (69 € einmalig).",
         () => {
           closeConfirm();
           setUpgradeModalOpen(true);
@@ -908,14 +911,14 @@ export default function Home() {
                 ownerPremium
                   ? "Owner-Modus: Premium dauerhaft aktiv"
                   : premiumPlan === "lifetime"
-                  ? "Lebenslanger Premium-Zugang"
+                  ? "Lebenslanger Premium-Zugang inkl. Inkognito"
                   : premiumPlan
                     ? "Premium-Abo verwalten"
                     : `Premium über Empfehlungsprogramm bis ${referralUntil ? new Date(referralUntil).toLocaleDateString("de-DE") : ""}`
               }
               className={`font-bold transition-colors flex items-center gap-1 ${ownerPremium ? "text-emerald-600" : "text-amber-500 hover:text-amber-600"}`}
             >
-              ★ {ownerPremium ? "Owner" : "Premium"}
+              ★ {ownerPremium ? "Owner" : premiumPlan === "lifetime" ? "Lifetime" : premiumPlan === "premium_plus" ? "Premium+" : "Premium"}
             </button>
           ) : (
             <button

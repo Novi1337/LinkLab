@@ -13,7 +13,7 @@ interface AccountModalProps {
 }
 
 type SubscriptionInfo = {
-  plan: "monthly" | "yearly" | "lifetime" | null;
+  plan: "premium" | "premium_plus" | "lifetime" | null;
   premiumSince: string | null;
   status: string | null;
   currentPeriodEnd: string | null;
@@ -21,8 +21,8 @@ type SubscriptionInfo = {
 };
 
 const PLAN_LABELS: Record<string, string> = {
-  monthly: "Premium – Monatlich",
-  yearly: "Premium – Jährlich",
+  premium: "Premium – Jahres-Abo",
+  premium_plus: "Premium+ – Jahres-Abo",
   lifetime: "Premium – Lifetime",
 };
 

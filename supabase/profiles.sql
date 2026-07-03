@@ -5,7 +5,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   stripe_customer_id text unique,
   stripe_subscription_id text,
-  premium_plan text check (premium_plan in ('monthly', 'yearly', 'lifetime')),
+  premium_plan text check (premium_plan in ('premium', 'premium_plus', 'lifetime')),
   premium_since timestamptz,
   created_at timestamptz not null default now()
 );

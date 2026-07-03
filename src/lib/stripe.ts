@@ -59,13 +59,16 @@ export async function getAdminFromRequest(request: Request) {
 // Der Client schickt NUR den Plan-Namen - niemals Preise oder Price-IDs,
 // damit niemand den Preis manipulieren kann.
 export const PLAN_PRICE_ENV: Record<string, string | undefined> = {
-  monthly: process.env.STRIPE_PRICE_MONTHLY,
-  yearly: process.env.STRIPE_PRICE_YEARLY,
+  premium: process.env.STRIPE_PRICE_PREMIUM,
+  premium_plus: process.env.STRIPE_PRICE_PREMIUM_PLUS,
   lifetime: process.env.STRIPE_PRICE_LIFETIME,
 };
 
-export type PremiumPlan = "monthly" | "yearly" | "lifetime";
+// premium      = 12 €/Jahr: unbegrenzte Reiter/Abschnitte, werbefrei
+// premium_plus = 24 €/Jahr: wie premium + Inkognito-Modus
+// lifetime     = 69 € einmalig: wie premium_plus, ohne Abo
+export type PremiumPlan = "premium" | "premium_plus" | "lifetime";
 
 export function isPremiumPlan(value: unknown): value is PremiumPlan {
-  return value === "monthly" || value === "yearly" || value === "lifetime";
+  return value === "premium" || value === "premium_plus" || value === "lifetime";
 }
