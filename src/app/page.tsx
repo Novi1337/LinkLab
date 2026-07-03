@@ -31,6 +31,18 @@ type Tab = {
   name: string;
 };
 
+// Kürzt eine Beschreibung auf eine sinnvolle Länge, ohne mitten im Wort abzuschneiden,
+// damit der Nutzer noch erkennen kann, worum es im gespeicherten Link geht.
+const DESCRIPTION_MAX_LENGTH = 220;
+function truncateDescription(text?: string | null): string {
+  if (!text) return "";
+  const trimmed = text.trim();
+  if (trimmed.length <= DESCRIPTION_MAX_LENGTH) return trimmed;
+  const cut = trimmed.slice(0, DESCRIPTION_MAX_LENGTH);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > 40 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+}
+
 export default function Home() {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -145,14 +157,9 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setIsLoggedIn(true);
-        setUserEmail(session.user.email || "");
-        fetchData(null);
-      }
-    });
-
+    // onAuthStateChange feuert beim Registrieren sofort mit der aktuellen Session (Event "INITIAL_SESSION"),
+    // ein zusätzlicher separater getSession()-Aufruf hier würde fetchData() doppelt und parallel auslösen
+    // (Race Condition: doppelter "Startseite"-Tab für neue Nutzer).
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setIsLoggedIn(true);
@@ -304,7 +311,7 @@ export default function Home() {
       const metaData = await res.json();
       
       const title = metaData.title || domain;
-      const desc = metaData.description?.substring(0, 100) || fullUrl;
+      const desc = truncateDescription(metaData.description) || fullUrl;
       const image = metaData.image || null;
 
       await supabase.from('links').update({ title, description: desc, image }).eq('id', realDbLink.id);
@@ -321,6 +328,19 @@ export default function Home() {
       await supabase.from("links").delete().eq("id", linkId);
       fetchData(activeTabId);
     }
+  };
+
+  // Wird aufgerufen, wenn Links innerhalb einer Sektion neu sortiert ODER von einer anderen Sektion hinzugefügt werden
+  const updateSectionLinks = (sectionId: string, newLinks: Link[]) => {
+    setSections(prev => updateSectionInState(prev, sectionId, s => {
+      const oldIds = new Set(s.links.map(l => l.id));
+      const addedLinks = newLinks.filter(l => !oldIds.has(l.id));
+      // Links, die neu in dieser Sektion gelandet sind, in der DB umhängen
+      addedLinks.forEach(l => {
+        supabase.from("links").update({ section_id: sectionId }).eq("id", l.id);
+      });
+      return { ...s, links: newLinks };
+    }));
   };
 
   const renameSection = async (sectionId: string, oldName: string) => {
@@ -397,13 +417,19 @@ export default function Home() {
               </form>
             )}
             
-            {section.links.length > 0 && (
-              <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-                {section.links.map((link) => (
+            <ReactSortable
+              list={section.links}
+              setList={(newList) => updateSectionLinks(section.id, newList)}
+              animation={150}
+              group={{ name: "links", pull: true, put: true }}
+              tag="ul"
+              className={`grid grid-cols-1 md:grid-cols-2 gap-3 mb-6 min-h-[12px] rounded-xl transition-colors ${section.links.length === 0 ? "border-2 border-dashed border-slate-200" : ""}`}
+            >
+              {section.links.map((link) => (
                   <li
                     key={link.id}
                     onClick={() => window.open(link.url, "_blank", "noopener,noreferrer")}
-                    className="flex gap-3 items-center py-2 px-3 rounded-xl border border-slate-200 bg-card cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all relative group/card"
+                    className="flex gap-3 items-center py-2 px-3 rounded-xl border border-slate-200 bg-card cursor-grab active:cursor-grabbing hover:shadow-lg hover:-translate-y-1 transition-all relative group/card"
                   >
                     <button 
                       onClick={(e) => deleteLink(e, link.id)}
@@ -422,12 +448,11 @@ export default function Home() {
                       <a href={link.url} target="_blank" rel="noopener noreferrer" className="block text-brand-dark font-semibold text-[14px] truncate" onClick={(e) => e.stopPropagation()}>
                         {link.title}
                       </a>
-                      <p className="m-0 text-muted text-[12px] truncate leading-snug">{link.description}</p>
+                      <p className="m-0 text-muted text-[12px] truncate leading-snug" title={link.description}>{link.description}</p>
                     </div>
                   </li>
                 ))}
-              </ul>
-            )}
+              </ReactSortable>
 
             {section.subSections.length > 0 && (
               <ReactSortable 
