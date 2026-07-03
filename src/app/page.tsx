@@ -428,9 +428,9 @@ export default function Home() {
     const isCollapsed = collapsedSections[section.id] || false;
 
     return (
-      <div key={section.id} className={`bg-transparent ${depth > 0 ? "ml-8 mt-6 border-l-2 border-primary/20 pl-6" : ""}`}>
+      <div key={section.id} className={`bg-transparent ${depth > 0 ? "ml-6 mt-4 border-l-2 border-primary/20 pl-5" : ""}`}>
         <div
-          className="section-header flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 border-b border-slate-300 pb-2 cursor-move gap-2 sm:gap-0 group"
+          className="section-header flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 border-b border-slate-300 pb-2 cursor-move gap-2 sm:gap-0 group"
           style={section.color ? { borderBottomColor: section.color } : undefined}
         >
           <div className="flex items-center gap-3">
@@ -455,7 +455,7 @@ export default function Home() {
               />
               {colorPickerOpenId === `section-${section.id}` && renderColorPicker(section.color, (color) => updateSectionColor(section.id, color))}
             </div>
-            <h3 className={`${depth > 0 ? "text-lg font-medium text-brand-dark" : "text-xl font-semibold text-brand-dark"} m-0 flex items-center gap-2 group/heading cursor-pointer`} onClick={() => renameSection(section.id, section.name)} title="Hier klicken zum Bearbeiten">
+            <h3 className={`${depth > 0 ? "text-base font-semibold text-brand-dark" : "text-lg font-semibold text-brand-dark"} m-0 flex items-center gap-2 group/heading cursor-pointer`} onClick={() => renameSection(section.id, section.name)} title="Hier klicken zum Bearbeiten">
               {section.name}
               <Edit2 className="w-4 h-4 text-slate-300 opacity-0 group-hover/heading:opacity-100 transition-opacity" />
             </h3>
@@ -478,7 +478,7 @@ export default function Home() {
         {!isCollapsed && (
           <div className="animate-in slide-in-from-top-2 fade-in duration-200">
             {activeLinkForm === section.id && (
-              <form onSubmit={(e) => { addLink(e, section.id); setActiveLinkForm(null); }} className="flex gap-2 mb-6 animate-in slide-in-from-top-1 fade-in duration-200">
+              <form onSubmit={(e) => { addLink(e, section.id); setActiveLinkForm(null); }} className="flex gap-2 mb-4 animate-in slide-in-from-top-1 fade-in duration-200">
                 <input
                   type="url"
                   required
@@ -500,7 +500,7 @@ export default function Home() {
               animation={150}
               group={{ name: "links", pull: true, put: true }}
               tag="ul"
-              className={`grid grid-cols-1 md:grid-cols-2 gap-3 mb-6 min-h-[12px] rounded-xl transition-colors ${section.links.length === 0 ? "border-2 border-dashed border-slate-200" : ""}`}
+              className={`grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 min-h-[12px] rounded-xl transition-colors ${section.links.length === 0 ? "border-2 border-dashed border-slate-200" : ""}`}
             >
               {section.links.map((link) => (
                   <li
@@ -538,7 +538,7 @@ export default function Home() {
                 setList={(newList) => setSections(prev => updateSectionInState(prev, section.id, s => ({...s, subSections: newList})))} 
                 animation={150} 
                 handle=".section-header" 
-                className="flex flex-col gap-4"
+                className="flex flex-col gap-3"
               >
                 {section.subSections.map((sub, index) => (
                   <div key={sub.id}>
@@ -546,7 +546,7 @@ export default function Home() {
 
                     {/* Werbung nach allen 10 Untersektionen */}
                     {(index + 1) % 10 === 0 && index !== section.subSections.length - 1 && (
-                      <div className="my-6 pr-4">
+                      <div className="my-4 pr-4">
                         <span className="block text-micro text-slate-400 uppercase tracking-wider text-center mb-1">Anzeige</span>
                         <div className="bg-white/30 rounded-xl border border-slate-100 overflow-hidden shadow-sm">
                           <AdBanner dataAdSlot="INSERT_YOUR_AD_SLOT_ID_HERE" dataAdFormat="horizontal" />
@@ -722,7 +722,7 @@ export default function Home() {
       </div>
       
       <main className="max-w-shell mx-auto px-5 pt-5 pb-20">
-        <div className="flex justify-end mb-8 animate-in slide-in-from-right-4 fade-in duration-300">
+        <div className="flex justify-end mb-6 animate-in slide-in-from-right-4 fade-in duration-300">
           <button onClick={() => addSection(null)} className="text-primary hover:bg-slate-100 px-4 py-2 rounded-lg font-medium transition-colors flex gap-2 items-center text-sm border border-slate-200">
             <span className="text-lg leading-none font-bold">+</span> Abschnitt einfügen
           </button>
@@ -730,21 +730,21 @@ export default function Home() {
 
         {sections.length === 0 && (
           <div className="text-center py-20 px-5 bg-white border border-dashed border-slate-300 rounded-3xl">
-            <h3 className="text-xl font-bold text-brand-dark mb-2">Noch ziemlich leer hier!</h3>
+            <h3 className="text-lg font-bold text-brand-dark mb-2">Noch ziemlich leer hier!</h3>
             <p className="text-slate-500 max-w-md mx-auto line-clamp-3">
               Klicke oben rechts auf &quot;+ Abschnitt einfügen&quot;, um mit dem Speichern deiner Links in diesem Reiter zu beginnen.
             </p>
           </div>
         )}
 
-        <ReactSortable list={sections} setList={setSections} animation={150} handle=".section-header" className="flex flex-col gap-8">
+        <ReactSortable list={sections} setList={setSections} animation={150} handle=".section-header" className="flex flex-col gap-6">
           {sections.map((section, index) => (
             <div key={section.id}>
               {renderSection(section, 0)}
               
               {/* Dezent platzierte Werbung nach jeder zweiten Hauptsektion */}
               {(index + 1) % 2 === 0 && index !== sections.length - 1 && (
-                <div className="my-8 px-4 animate-in fade-in duration-500">
+                <div className="my-6 px-4 animate-in fade-in duration-500">
                   <span className="block text-micro text-slate-400 font-bold uppercase tracking-widest text-center mb-2">Anzeige</span>
                   <div className="bg-white/50 rounded-3xl border border-slate-100 overflow-hidden shadow-sm p-1">
                     <AdBanner dataAdSlot="INSERT_YOUR_AD_SLOT_ID_HERE" dataAdFormat="horizontal" />
