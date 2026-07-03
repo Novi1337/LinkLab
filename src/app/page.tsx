@@ -721,7 +721,7 @@ export default function Home() {
         </div>
       </div>
       
-      <main className="max-w-shell mx-auto px-5 pb-20">
+      <main className="max-w-shell mx-auto px-5 pt-5 pb-20">
         <div className="flex justify-end mb-8 animate-in slide-in-from-right-4 fade-in duration-300">
           <button onClick={() => addSection(null)} className="text-primary hover:bg-slate-100 px-4 py-2 rounded-lg font-medium transition-colors flex gap-2 items-center text-sm border border-slate-200">
             <span className="text-lg leading-none font-bold">+</span> Abschnitt einfügen
