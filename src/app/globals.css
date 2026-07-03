@@ -10,6 +10,25 @@
   --color-card: #ffffff;
   --color-brand-dark: #23466b;
   --font-sans: var(--font-inter), "Helvetica Neue", Arial, sans-serif;
+
+  /*
+   * Layout-Skala nach dem Goldenen Schnitt (φ ≈ 1.618):
+   * Der Hauptcontainer (--container-shell, 1100px) und die Auth-Karte
+   * (--container-shell-golden) stehen im Verhältnis φ² (≈2.618) zueinander:
+   * 1100px / φ² ≈ 420px.
+   */
+  --container-shell: 68.75rem; /* 1100px */
+  --container-shell-golden: 26.25rem; /* ≈ 420px (1100px / φ²) */
+
+  /*
+   * Kleine, gezielte Ergänzungen zur Standard-Typografie-Skala von Tailwind
+   * (xs=12px, sm=14px, lg=18px, xl=20px passen bereits gut zu φ-Schritten
+   * mit Basis 14px und Faktor φ^0.25 ≈ 1.1247 pro Stufe). Diese beiden Werte
+   * lagen bisher als uneinheitliche, hart codierte Pixelwerte (9px/10px/15px)
+   * vor und werden hier zu benannten, wiederverwendbaren Stufen zusammengefasst.
+   */
+  --text-nav: 0.9375rem; /* 15px – Tabs, Login-Umschalter, "+"-Button */
+  --text-micro: 0.625rem; /* 10px – "Anzeige"-Kennzeichnungen (vereinheitlicht von 9px/10px) */
 }
 
 body {

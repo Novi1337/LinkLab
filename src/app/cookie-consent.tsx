@@ -29,7 +29,7 @@ export function CookieConsent() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-2xl z-50 p-6 sm:p-8 animate-in slide-in-from-bottom-full duration-300">
-      <div className="max-w-[1100px] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="max-w-shell mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>
           <h3 className="text-lg font-bold text-brand-dark mb-2">Wir verwenden Cookies & personalisierte Werbung</h3>
           <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">

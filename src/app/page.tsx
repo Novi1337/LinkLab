@@ -439,16 +439,17 @@ export default function Home() {
                       ✕
                     </button>
                     <div
-                      className="w-[34px] h-[34px] shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-primary text-sm font-bold bg-cover bg-center border border-slate-100"
+                      /* Golden-Ratio-Thumbnail statt Quadrat: 52x32px ≈ φ (1.618) */
+                      className="w-13 h-8 shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-primary text-sm font-bold bg-cover bg-center border border-slate-100"
                       style={link.image ? { backgroundImage: `url(${link.image})` } : {}}
                     >
                       {!link.image && link.initial}
                     </div>
                     <div className="overflow-hidden pr-4 flex-1">
-                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="block text-brand-dark font-semibold text-[14px] truncate" onClick={(e) => e.stopPropagation()}>
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="block text-brand-dark font-semibold text-sm truncate" onClick={(e) => e.stopPropagation()}>
                         {link.title}
                       </a>
-                      <p className="m-0 text-muted text-[12px] truncate leading-snug" title={link.description}>{link.description}</p>
+                      <p className="m-0 text-muted text-xs truncate leading-snug" title={link.description}>{link.description}</p>
                     </div>
                   </li>
                 ))}
@@ -469,7 +470,7 @@ export default function Home() {
                     {/* Werbung nach allen 10 Untersektionen */}
                     {(index + 1) % 10 === 0 && index !== section.subSections.length - 1 && (
                       <div className="my-6 pr-4">
-                        <span className="block text-[9px] text-slate-400 uppercase tracking-wider text-center mb-1">Anzeige</span>
+                        <span className="block text-micro text-slate-400 uppercase tracking-wider text-center mb-1">Anzeige</span>
                         <div className="bg-white/30 rounded-xl border border-slate-100 overflow-hidden shadow-sm">
                           <AdBanner dataAdSlot="INSERT_YOUR_AD_SLOT_ID_HERE" dataAdFormat="horizontal" />
                         </div>
@@ -489,14 +490,15 @@ export default function Home() {
     return (
       <div className="flex items-center justify-center min-h-screen p-5 bg-[url('/bg.svg')] bg-[length:40px_40px] bg-center animate-in fade-in duration-500 font-sans text-brand-dark">
         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm -z-10"></div>
-        <div className="w-full max-w-[420px] text-center z-10">
+        {/* max-w-shell-golden = max-w-shell / φ² (Goldener Schnitt zum Hauptcontainer) */}
+        <div className="w-full max-w-shell-golden text-center z-10">
           <div className="flex items-center justify-center mb-8 drop-shadow-sm">
             <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[80px] w-auto max-w-full" />
           </div>
           <div className="bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/50">
             <div className="flex gap-2 mb-6 border-b border-slate-200/60 pb-0">
               <button
-                className={`flex-1 pb-3 font-bold transition-all border-b-2 text-[15px] ${
+                className={`flex-1 pb-3 font-bold transition-all border-b-2 text-nav ${
                   isLoginMode ? "text-primary border-primary" : "text-slate-400 border-transparent hover:text-slate-600"
                 }`}
                 onClick={() => setIsLoginMode(true)}
@@ -504,7 +506,7 @@ export default function Home() {
                 Anmelden
               </button>
               <button
-                className={`flex-1 pb-3 font-bold transition-all border-b-2 text-[15px] ${
+                className={`flex-1 pb-3 font-bold transition-all border-b-2 text-nav ${
                   !isLoginMode ? "text-primary border-primary" : "text-slate-400 border-transparent hover:text-slate-600"
                 }`}
                 onClick={() => setIsLoginMode(false)}
@@ -567,7 +569,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen font-sans">
-      <header className="max-w-[1100px] mx-auto flex justify-between items-center px-5 py-4 bg-transparent border-b border-transparent sticky top-0 z-20">
+      <header className="max-w-shell mx-auto flex justify-between items-center px-5 py-4 bg-transparent border-b border-transparent sticky top-0 z-20">
         <div className="flex items-center">
           <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[26px] w-auto max-w-[50vw]" />
         </div>
@@ -581,7 +583,7 @@ export default function Home() {
       </header>
 
       {/* TABS Navigation */}
-      <div className="max-w-[1100px] mx-auto px-5 mb-0">
+      <div className="max-w-shell mx-auto px-5 mb-0">
         <div className="flex gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar pb-[-1px] items-center pt-2">
           {tabs.map((tab) => (
             <div key={tab.id} className="relative group/tab flex items-center shrink-0">
@@ -593,7 +595,7 @@ export default function Home() {
                 }}
                 onDoubleClick={() => renameTab(tab.id, tab.name)}
                 title="Doppelklick zum Umbenennen"
-                className={`px-5 py-3 font-bold text-[15px] whitespace-nowrap transition-all border-b-2 -mb-[1px] rounded-t-xl hover:bg-slate-50 flex items-center gap-2 cursor-pointer ${
+                className={`px-5 py-3 font-bold text-nav whitespace-nowrap transition-all border-b-2 -mb-[1px] rounded-t-xl hover:bg-slate-50 flex items-center gap-2 cursor-pointer ${
                   activeTabId === tab.id 
                     ? "border-primary text-primary" 
                     : "border-transparent text-slate-500 hover:text-brand-dark"
@@ -624,7 +626,7 @@ export default function Home() {
           ))}
           <button 
             onClick={addTab} 
-            className="px-4 py-3 font-black text-[15px] text-slate-400 hover:text-primary whitespace-nowrap shrink-0 hover:bg-slate-50 rounded-t-xl transition-all"
+            className="px-4 py-3 font-black text-nav text-slate-400 hover:text-primary whitespace-nowrap shrink-0 hover:bg-slate-50 rounded-t-xl transition-all"
             title="Neuen Reiter anlegen"
           >
             +
@@ -632,7 +634,7 @@ export default function Home() {
         </div>
       </div>
       
-      <main className="max-w-[1100px] mx-auto px-5 pb-20">
+      <main className="max-w-shell mx-auto px-5 pb-20">
         <div className="flex justify-end mb-8 animate-in slide-in-from-right-4 fade-in duration-300">
           <button onClick={() => addSection(null)} className="text-primary hover:bg-slate-100 px-4 py-2 rounded-lg font-medium transition-colors flex gap-2 items-center text-sm border border-slate-200">
             <span className="text-lg leading-none font-bold">+</span> Abschnitt einfügen
@@ -656,7 +658,7 @@ export default function Home() {
               {/* Dezent platzierte Werbung nach jeder zweiten Hauptsektion */}
               {(index + 1) % 2 === 0 && index !== sections.length - 1 && (
                 <div className="my-8 px-4 animate-in fade-in duration-500">
-                  <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center mb-2">Anzeige</span>
+                  <span className="block text-micro text-slate-400 font-bold uppercase tracking-widest text-center mb-2">Anzeige</span>
                   <div className="bg-white/50 rounded-3xl border border-slate-100 overflow-hidden shadow-sm p-1">
                     <AdBanner dataAdSlot="INSERT_YOUR_AD_SLOT_ID_HERE" dataAdFormat="horizontal" />
                   </div>
