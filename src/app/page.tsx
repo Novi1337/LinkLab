@@ -466,7 +466,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm -z-10"></div>
         <div className="w-full max-w-[420px] text-center z-10">
           <div className="flex items-center justify-center mb-8 drop-shadow-sm">
-            <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[160px] w-auto max-w-full" />
+            <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[80px] w-auto max-w-full" />
           </div>
           <div className="bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/50">
             <div className="flex gap-2 mb-6 border-b border-slate-200/60 pb-0">
@@ -542,9 +542,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen font-sans">
-      <header className="max-w-[1100px] mx-auto flex justify-between items-center px-5 py-6 bg-transparent border-b border-transparent sticky top-0 z-20">
+      <header className="max-w-[1100px] mx-auto flex justify-between items-center px-5 py-4 bg-transparent border-b border-transparent sticky top-0 z-20">
         <div className="flex items-center">
-          <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[280px] w-auto max-w-[50vw]" />
+          <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[26px] w-auto max-w-[50vw]" />
         </div>
         <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
           <span className="hidden sm:inline-block font-semibold">{userEmail}</span>
