@@ -118,7 +118,7 @@ export default function Home() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: `${window.location.origin}/auth/callback`,
       }
     });
     if (error) alert("GitHub Login Fehler: " + error.message);
@@ -128,7 +128,7 @@ export default function Home() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: `${window.location.origin}/auth/callback`,
       }
     });
     if (error) alert("Google Login Fehler: " + error.message);
