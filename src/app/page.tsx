@@ -573,7 +573,7 @@ export default function Home() {
                 {tab.name}
                 <Edit2 
                   onClick={(e) => { e.stopPropagation(); renameTab(tab.id, tab.name); }} 
-                  className={`w-3.5 h-3.5 transition-opacity ${activeTabId === tab.id ? 'opacity-100 hover:text-primary-hover' : 'opacity-0 group-hover/tab:opacity-100'}`} 
+                  className="w-3.5 h-3.5 transition-opacity opacity-0 group-hover/tab:opacity-100 hover:text-primary-hover"
                 />
               </button>
               
