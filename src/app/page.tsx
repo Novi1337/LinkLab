@@ -699,10 +699,10 @@ export default function Home() {
               {tabs.length > 1 && (
                 <button 
                   onClick={() => deleteTab(tab.id)}
-                  className={`absolute right-1 top-2 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold transition-all ${
+                  className={`absolute right-1 top-2 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold opacity-0 group-hover/tab:opacity-100 transition-all ${
                     activeTabId === tab.id 
                       ? "text-primary hover:bg-danger hover:text-white" 
-                      : "text-slate-300 opacity-0 group-hover/tab:opacity-100 hover:bg-danger hover:text-white"
+                      : "text-slate-300 hover:bg-danger hover:text-white"
                   }`}
                   title="Reiter unwiderruflich löschen"
                 >
