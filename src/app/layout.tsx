@@ -15,10 +15,10 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/linklib-icon.svg", type: "image/svg+xml" },
+      { url: "/Favicon.svg", type: "image/svg+xml" },
     ],
-    apple: [{ url: "/linklib-icon.svg", type: "image/svg+xml" }],
-    shortcut: ["/linklib-icon.svg"],
+    apple: [{ url: "/Favicon.svg", type: "image/svg+xml" }],
+    shortcut: ["/Favicon.svg"],
   },
   keywords: ["Lesezeichen verwalten", "Links speichern", "Bookmark Manager", "Link-Bibliothek", "Ordner System für Links", "Cloud Bookmarks"],
   authors: [{ name: "LinkLib" }],
