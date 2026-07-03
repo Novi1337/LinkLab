@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ReactSortable } from "react-sortablejs";
 import { supabase } from "@/lib/supabaseClient";
 import { AdBanner } from "@/components/AdBanner";
@@ -19,8 +19,14 @@ type Section = {
   id: string;
   name: string;
   parent_id: string | null;
+  tab_id: string | null;
   links: Link[];
   subSections: Section[];
+};
+
+type Tab = {
+  id: string;
+  name: string;
 };
 
 export default function Home() {
@@ -30,7 +36,9 @@ export default function Home() {
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   
-  // We'll manage a tree of sections. Root sections have no parent_id.
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  
   const [sections, setSections] = useState<Section[]>([]);
   const [newLinkInputs, setNewLinkInputs] = useState<{ [key: string]: string }>({});
   const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({});
@@ -41,39 +49,50 @@ export default function Home() {
     setCollapsedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setIsLoggedIn(true);
-        setUserEmail(session.user.email || "");
-        fetchData();
-      }
-    });
+  const fetchData = useCallback(async (tabIdToLoad: string | null) => {
+    // 1. Fetch Tabs
+    const { data: tabsData } = await supabase.from("tabs").select("*").order("created_at", { ascending: true });
+    
+    let currentTabs = tabsData || [];
+    let loadTab = tabIdToLoad;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setIsLoggedIn(true);
-        setUserEmail(session.user.email || "");
-        fetchData();
-      } else {
-        setIsLoggedIn(false);
-        setUserEmail("");
-        setSections([]);
+    // Create Initial Tab if Empty
+    if (currentTabs.length === 0) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        const { data: newTab } = await supabase
+          .from("tabs")
+          .insert([{ name: "Startseite", user_id: sessionData.session.user.id }])
+          .select();
+        
+        if (newTab && newTab.length > 0) {
+          currentTabs = newTab;
+          // Assign old sections to this new default tab
+          await supabase.from("sections").update({ tab_id: newTab[0].id }).is("tab_id", null);
+        }
       }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+    }
 
-  const fetchData = async () => {
+    setTabs(currentTabs);
+    
+    if (!loadTab && currentTabs.length > 0) {
+      loadTab = currentTabs[0].id;
+    }
+    
+    if (loadTab !== activeTabId) {
+      setActiveTabId(loadTab);
+    }
+
+    // 2. Fetch Sections & Links
     const { data: sectionsData } = await supabase.from("sections").select("*").order("created_at", { ascending: true });
     const { data: linksData } = await supabase.from("links").select("*").order("created_at", { ascending: false });
 
     if (sectionsData) {
-      // Create flat list mapped to our interface
       const allSecs: Section[] = sectionsData.map((sec) => ({
         id: sec.id,
         name: sec.name,
         parent_id: sec.parent_id,
+        tab_id: sec.tab_id,
         subSections: [],
         links: linksData
           ? linksData
@@ -90,17 +109,76 @@ export default function Home() {
           : [],
       }));
 
-      const roots = allSecs.filter(s => !s.parent_id);
+      // Find relevant root structure for active tab
+      const roots = allSecs.filter(s => !s.parent_id && (s.tab_id === loadTab || s.tab_id === null));
       allSecs.forEach(s => {
         if (s.parent_id) {
           const parent = allSecs.find(p => p.id === s.parent_id);
           if (parent) parent.subSections.push(s);
         }
       });
+
       setSections(roots);
+    }
+  }, [activeTabId]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setIsLoggedIn(true);
+        setUserEmail(session.user.email || "");
+        fetchData(null);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setIsLoggedIn(true);
+        setUserEmail(session.user.email || "");
+        fetchData(null);
+      } else {
+        setIsLoggedIn(false);
+        setUserEmail("");
+        setSections([]);
+        setTabs([]);
+        setActiveTabId(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [fetchData]);
+
+  // Tab Methods
+  const addTab = async () => {
+    const name = prompt("Name des neuen Reiters:");
+    if (!name?.trim()) return;
+    
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) return;
+    
+    const { data } = await supabase.from("tabs").insert([{ name: name.trim(), user_id: sessionData.session.user.id }]).select();
+    if (data && data.length > 0) {
+      setTabs([...tabs, data[0]]);
+      fetchData(data[0].id);
     }
   };
 
+  const renameTab = async (tabId: string, oldName: string) => {
+    const name = prompt("Reiter umbenennen:", oldName);
+    if (!name || name.trim() === oldName) return;
+    await supabase.from("tabs").update({ name: name.trim() }).eq("id", tabId);
+    setTabs(tabs.map(t => t.id === tabId ? { ...t, name: name.trim() } : t));
+  };
+
+  const deleteTab = async (tabId: string) => {
+    if (!confirm("Diesen Reiter inklusive aller beinhalteten Sektionen und Links wirklich unwiderruflich löschen?")) return;
+    await supabase.from("tabs").delete().eq("id", tabId);
+    
+    const remaining = tabs.filter(t => t.id !== tabId);
+    setTabs(remaining);
+    fetchData(remaining.length > 0 ? remaining[0].id : null);
+  };
+
+  // Auth Handlers
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailInput || !passwordInput) return alert("Bitte fülle alle Felder aus.");
@@ -134,6 +212,7 @@ export default function Home() {
     setPasswordInput("");
   };
 
+  // Data Actions
   const addSection = async (parentId: string | null = null) => {
     const name = prompt(parentId ? "Wie soll die Untersektion heißen?" : "Wie soll die neue Hauptsektion heißen?");
     if (!name?.trim()) return;
@@ -141,14 +220,14 @@ export default function Home() {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) return;
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("sections")
-      .insert([{ name: name.trim(), user_id: sessionData.session.user.id, parent_id: parentId }])
+      .insert([{ name: name.trim(), user_id: sessionData.session.user.id, parent_id: parentId, tab_id: activeTabId }])
       .select();
 
-    if (data && data.length > 0) {
-      fetchData(); // Reload safely to build tree
-    } else if (error) {
+    if (!error) {
+      fetchData(activeTabId);
+    } else {
       alert("Fehler beim Erstellen der Sektion: " + error.message);
     }
   };
@@ -187,7 +266,7 @@ export default function Home() {
         title: domain, description: "Lade Metadaten...", domain, initial
     }]).select();
 
-    if (error || !insertedData) return fetchData();
+    if (error || !insertedData) return fetchData(activeTabId);
     const realDbLink = insertedData[0];
 
     // Fetch Metadata
@@ -201,10 +280,10 @@ export default function Home() {
       const image = metaData.image || null;
 
       await supabase.from('links').update({ title, description: desc, image }).eq('id', realDbLink.id);
-      fetchData();
+      fetchData(activeTabId);
     } catch {
       await supabase.from('links').update({ description: fullUrl }).eq('id', realDbLink.id);
-      fetchData();
+      fetchData(activeTabId);
     }
   };
 
@@ -212,14 +291,14 @@ export default function Home() {
     e.stopPropagation();
     if (confirm("Link wirklich löschen?")) {
       await supabase.from("links").delete().eq("id", linkId);
-      fetchData();
+      fetchData(activeTabId);
     }
   };
 
   const deleteSection = async (sectionId: string) => {
     if (confirm("Sektion (und ihre Untersektionen/Links) wirklich löschen?")) {
       await supabase.from("sections").delete().eq("id", sectionId);
-      fetchData();
+      fetchData(activeTabId);
     }
   };
 
@@ -229,7 +308,7 @@ export default function Home() {
 
     return (
       <div key={section.id} className={`bg-transparent ${depth > 0 ? "ml-8 mt-6 border-l-2 border-primary/20 pl-6" : ""}`}>
-        <div className="section-header flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 border-b border-slate-300 pb-2 cursor-move gap-2 sm:gap-0">
+        <div className="section-header flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 border-b border-slate-300 pb-2 cursor-move gap-2 sm:gap-0 group">
           <div className="flex items-center gap-3">
             <button 
               onClick={(e) => toggleCollapse(section.id, e)} 
@@ -246,13 +325,15 @@ export default function Home() {
               {section.name}
             </h3>
           </div>
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-4 items-center opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={() => setActiveLinkForm(activeLinkForm === section.id ? null : section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
               + Link
             </button>
-            <button onClick={() => addSection(section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
-              + Untersektion
-            </button>
+            {depth === 0 && (
+              <button onClick={() => addSection(section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
+                + Untersektion
+              </button>
+            )}
             <button onClick={() => deleteSection(section.id)} className="text-sm text-danger hover:opacity-80">
               Löschen
             </button>
@@ -284,12 +365,12 @@ export default function Home() {
                   <li
                     key={link.id}
                     onClick={() => window.open(link.url, "_blank", "noopener,noreferrer")}
-                    className="flex gap-4 items-center p-4 rounded-xl border border-slate-200 bg-card cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all relative group"
+                    className="flex gap-4 items-center p-4 rounded-xl border border-slate-200 bg-card cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all relative group/card"
                   >
                     <button 
                       onClick={(e) => deleteLink(e, link.id)}
                       title="Link löschen"
-                      className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 text-muted hover:bg-danger hover:text-white opacity-0 group-hover:opacity-100 transition-all text-xs"
+                      className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 text-muted hover:bg-danger hover:text-white opacity-0 group-hover/card:opacity-100 transition-all text-xs z-10"
                     >
                       ✕
                     </button>
@@ -327,7 +408,7 @@ export default function Home() {
                       <div className="my-6 pr-4">
                         <span className="block text-[9px] text-slate-400 uppercase tracking-wider text-center mb-1">Anzeige</span>
                         <div className="bg-white/30 rounded-xl border border-slate-100 overflow-hidden shadow-sm">
-                          <AdBanner dataAdSlot="3471514716" dataAdFormat="horizontal" />
+                          <AdBanner dataAdSlot="INSERT_YOUR_AD_SLOT_ID_HERE" dataAdFormat="horizontal" />
                         </div>
                       </div>
                     )}
@@ -343,13 +424,14 @@ export default function Home() {
 
   if (!isLoggedIn) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-5">
-        <div className="w-full max-w-[420px] text-center">
-          <h1 className="text-3xl font-bold text-primary mb-8">LinkLab</h1>
-          <div className="bg-card rounded-2xl p-8 shadow-xl border border-slate-100">
-            <div className="flex gap-2 mb-6 border-b border-slate-200 pb-0">
+      <div className="flex items-center justify-center min-h-screen p-5 bg-[url('/bg.svg')] bg-[length:40px_40px] bg-center animate-in fade-in duration-500">
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm -z-10"></div>
+        <div className="w-full max-w-[420px] text-center z-10">
+          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-8 drop-shadow-sm">Link<span className="text-primary">Lab</span></h1>
+          <div className="bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/50">
+            <div className="flex gap-2 mb-6 border-b border-slate-200/60 pb-0">
               <button
-                className={`flex-1 pb-3 font-semibold transition-colors border-b-2 ${
+                className={`flex-1 pb-3 font-bold transition-all border-b-2 text-[15px] ${
                   isLoginMode ? "text-primary border-primary" : "text-slate-400 border-transparent hover:text-slate-600"
                 }`}
                 onClick={() => setIsLoginMode(true)}
@@ -357,7 +439,7 @@ export default function Home() {
                 Anmelden
               </button>
               <button
-                className={`flex-1 pb-3 font-semibold transition-colors border-b-2 ${
+                className={`flex-1 pb-3 font-bold transition-all border-b-2 text-[15px] ${
                   !isLoginMode ? "text-primary border-primary" : "text-slate-400 border-transparent hover:text-slate-600"
                 }`}
                 onClick={() => setIsLoginMode(false)}
@@ -373,7 +455,7 @@ export default function Home() {
                 required
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
-                className="p-3.5 rounded-xl border border-slate-200 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all bg-slate-50 focus:bg-white"
+                className="p-3.5 rounded-xl border border-slate-200 outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all bg-slate-50/50 focus:bg-white text-slate-900 font-medium placeholder:font-normal"
               />
               <input
                 type="password"
@@ -381,35 +463,35 @@ export default function Home() {
                 required
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                className="p-3.5 rounded-xl border border-slate-200 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all bg-slate-50 focus:bg-white"
+                className="p-3.5 rounded-xl border border-slate-200 outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all bg-slate-50/50 focus:bg-white text-slate-900 font-medium placeholder:font-normal"
               />
-              <button type="submit" className="bg-primary text-white p-3.5 rounded-xl font-semibold hover:bg-primary-hover hover:shadow-lg transition-all mt-2">
-                {isLoginMode ? "Anmelden" : "Konto erstellen"}
+              <button type="submit" className="bg-primary text-white p-3.5 rounded-xl font-bold hover:bg-primary-hover hover:scale-[1.02] hover:shadow-xl active:scale-95 transition-all mt-2">
+                {isLoginMode ? "Loslegen" : "Konto erstellen"}
               </button>
             </form>
             
             <div className="mt-8 flex flex-col gap-3">
-              <div className="relative flex items-center mb-2">
-                <div className="flex-grow border-t border-slate-200"></div>
-                <span className="shrink-0 px-4 text-slate-400 text-sm font-medium">ODER</span>
-                <div className="flex-grow border-t border-slate-200"></div>
+              <div className="relative flex items-center mb-3">
+                <div className="flex-grow border-t border-slate-200/80"></div>
+                <span className="shrink-0 px-4 text-slate-400 text-xs font-bold tracking-widest">ODER</span>
+                <div className="flex-grow border-t border-slate-200/80"></div>
               </div>
               
               <button 
                 onClick={handleGithubLogin}
-                className="flex items-center justify-center gap-3 bg-[#24292e] text-white p-3.5 rounded-xl font-medium hover:bg-[#1b1f23] transition-all hover:shadow-md"
+                className="flex items-center justify-center gap-3 bg-[#24292e] text-white p-3.5 rounded-xl font-semibold hover:bg-[#1b1f23] transition-all hover:shadow-md hover:scale-[1.01]"
                 type="button"
               >
                 <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
-                Mit GitHub
+                Mit GitHub verknüpfen
               </button>
               <button 
                 onClick={handleGoogleLogin}
-                className="flex items-center justify-center gap-3 bg-white border border-slate-200 text-slate-700 p-3.5 rounded-xl font-medium hover:bg-slate-50 transition-all hover:shadow-md"
+                className="flex items-center justify-center gap-3 bg-white border border-slate-200 text-slate-700 p-3.5 rounded-xl font-semibold hover:bg-slate-50 transition-all hover:shadow-md hover:scale-[1.01]"
                 type="button"
               >
                 <svg viewBox="0 0 24 24" width="22" height="22" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                Mit Google
+                Mit Google fortfahren
               </button>
             </div>
           </div>
@@ -420,22 +502,76 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      <header className="max-w-[1100px] mx-auto flex justify-between items-center p-4 bg-card border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <h2 className="text-2xl font-bold text-primary m-0">LinkLab</h2>
-        <div className="flex items-center gap-4 text-sm text-slate-600">
-          <span className="hidden sm:inline-block font-medium">{userEmail}</span>
-          <button onClick={handleLogout} className="border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors">
-            Abmelden
+      <header className="max-w-[1100px] mx-auto flex justify-between items-center p-5 bg-card border-b border-transparent sticky top-0 z-20">
+        <h2 className="text-2xl font-black tracking-tight text-slate-800 m-0">Link<span className="text-primary">Lab</span></h2>
+        <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
+          <span className="hidden sm:inline-block font-semibold">{userEmail}</span>
+          <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
+          <button onClick={handleLogout} className="text-slate-500 font-bold hover:text-danger transition-colors px-2">
+            Logout
           </button>
         </div>
       </header>
-      
-      <main className="max-w-[1100px] mx-auto mt-8 px-5 pb-20">
-        <div className="flex justify-start mb-8">
-          <button onClick={() => addSection(null)} className="bg-primary hover:bg-primary-hover text-white shadow-md px-5 py-3.5 rounded-xl font-semibold transition-all hover:shadow-lg flex gap-2 items-center">
-            <span className="text-xl leading-none">+</span> Neue Sektion
+
+      {/* TABS Navigation */}
+      <div className="max-w-[1100px] mx-auto px-5 mb-8">
+        <div className="flex gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar pb-[-1px] items-center pt-2">
+          {tabs.map((tab) => (
+            <div key={tab.id} className="relative group/tab flex items-center shrink-0">
+              <button 
+                onClick={() => fetchData(tab.id)}
+                onDoubleClick={() => renameTab(tab.id, tab.name)}
+                title="Doppelklick zum Umbenennen"
+                className={`px-5 py-3 font-bold text-[15px] whitespace-nowrap transition-all border-b-2 -mb-[1px] rounded-t-xl hover:bg-slate-50 ${
+                  activeTabId === tab.id 
+                    ? "border-primary text-primary" 
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                {tab.name}
+              </button>
+              
+              {/* Tab Delete Icon */}
+              {tabs.length > 1 && (
+                <button 
+                  onClick={() => deleteTab(tab.id)}
+                  className={`absolute right-1 top-2 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold transition-all ${
+                    activeTabId === tab.id 
+                      ? "text-primary hover:bg-danger hover:text-white" 
+                      : "text-slate-300 opacity-0 group-hover/tab:opacity-100 hover:bg-danger hover:text-white"
+                  }`}
+                  title="Reiter unwiderruflich löschen"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          <button 
+            onClick={addTab} 
+            className="px-4 py-3 font-black text-[15px] text-slate-400 hover:text-primary whitespace-nowrap shrink-0 hover:bg-slate-50 rounded-t-xl transition-all"
+            title="Neuen Reiter anlegen"
+          >
+            +
           </button>
         </div>
+      </div>
+      
+      <main className="max-w-[1100px] mx-auto px-5 pb-20">
+        <div className="flex justify-start mb-8 animate-in slide-in-from-left-4 fade-in duration-300">
+          <button onClick={() => addSection(null)} className="bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 px-5 py-3 rounded-xl font-bold transition-all hover:shadow-lg hover:-translate-y-0.5 flex gap-2 items-center">
+            <span className="text-xl leading-none font-black">+</span> Neue Sektion in "{tabs.find(t=>t.id === activeTabId)?.name}"
+          </button>
+        </div>
+
+        {sections.length === 0 && (
+          <div className="text-center py-20 px-5 bg-white border border-dashed border-slate-300 rounded-3xl">
+            <h3 className="text-xl font-bold text-slate-700 mb-2">Noch ziemlich leer hier!</h3>
+            <p className="text-slate-500 max-w-md mx-auto line-clamp-3">
+              Lege über den blauen Button oben eine "+ Neue Sektion" an, um mit dem Speichern deiner Links in diesem Reiter zu beginnen.
+            </p>
+          </div>
+        )}
 
         <ReactSortable list={sections} setList={setSections} animation={150} handle=".section-header" className="flex flex-col gap-8">
           {sections.map((section, index) => (
@@ -444,10 +580,10 @@ export default function Home() {
               
               {/* Dezent platzierte Werbung nach jeder zweiten Hauptsektion */}
               {(index + 1) % 2 === 0 && index !== sections.length - 1 && (
-                <div className="my-8 px-4">
-                  <span className="block text-[10px] text-slate-400 uppercase tracking-wider text-center mb-2">Anzeige</span>
-                  <div className="bg-white/50 rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
-                    <AdBanner dataAdSlot="3471514716" dataAdFormat="horizontal" />
+                <div className="my-8 px-4 animate-in fade-in duration-500">
+                  <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center mb-2">Anzeige</span>
+                  <div className="bg-white/50 rounded-3xl border border-slate-100 overflow-hidden shadow-sm p-1">
+                    <AdBanner dataAdSlot="INSERT_YOUR_AD_SLOT_ID_HERE" dataAdFormat="horizontal" />
                   </div>
                 </div>
               )}
