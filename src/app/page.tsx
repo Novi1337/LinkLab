@@ -7,6 +7,7 @@ import { AdBanner } from "@/components/AdBanner";
 import { Edit2 } from "lucide-react";
 import { PromptModal } from "@/components/PromptModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { UpgradeModal } from "@/components/UpgradeModal";
 
 type Link = {
   id: string;
@@ -74,6 +75,50 @@ export default function Home() {
   const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({});
   const [activeLinkForm, setActiveLinkForm] = useState<string | null>(null);
   const [colorPickerOpenId, setColorPickerOpenId] = useState<string | null>(null);
+
+  // Premium: null = noch nicht geladen, sonst der aktive Plan (oder "" = kein Premium)
+  const [premiumPlan, setPremiumPlan] = useState<string | null>(null);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const isPremium = !!premiumPlan;
+
+  const fetchPremiumStatus = useCallback(async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("premium_plan")
+      .eq("id", sessionData.session.user.id)
+      .maybeSingle();
+    setPremiumPlan(data?.premium_plan || "");
+  }, []);
+
+  // Nach Rückkehr von der Stripe-Checkout-Seite: Status neu laden und URL bereinigen.
+  // Kurz verzögert erneut prüfen, da der Webhook minimal später eintreffen kann als der Redirect.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("checkout")) {
+      if (params.get("checkout") === "success") {
+        fetchPremiumStatus();
+        const retry = setTimeout(fetchPremiumStatus, 3000);
+        window.history.replaceState({}, "", window.location.pathname);
+        return () => clearTimeout(retry);
+      }
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [fetchPremiumStatus]);
+
+  // Öffnet das Stripe-Billing-Portal (Abo verwalten/kündigen, Rechnungen)
+  const openBillingPortal = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return;
+    const res = await fetch("/api/stripe/portal", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (res.ok && data.url) window.location.href = data.url;
+  };
 
   useEffect(() => {
     if (!colorPickerOpenId) return;
@@ -250,16 +295,18 @@ export default function Home() {
         setIsLoggedIn(true);
         setUserEmail(session.user.email || "");
         fetchData(null);
+        fetchPremiumStatus();
       } else {
         setIsLoggedIn(false);
         setUserEmail("");
         setSections([]);
         setTabs([]);
         setActiveTabId(null);
+        setPremiumPlan(null);
       }
     });
     return () => subscription.unsubscribe();
-  }, [fetchData]);
+  }, [fetchData, fetchPremiumStatus]);
 
   // Tab Methods
   const addTab = async () => {
@@ -569,8 +616,8 @@ export default function Home() {
                   <div key={sub.id}>
                     {renderSection(sub, depth + 1)}
 
-                    {/* Werbung nach allen 10 Untersektionen */}
-                    {(index + 1) % 10 === 0 && index !== section.subSections.length - 1 && (
+                    {/* Werbung nach allen 10 Untersektionen (entfällt für Premium-Nutzer) */}
+                    {!isPremium && (index + 1) % 10 === 0 && index !== section.subSections.length - 1 && (
                       <div className="my-4 pr-4">
                         <span className="block text-micro text-slate-400 uppercase tracking-wider text-center mb-1">Anzeige</span>
                         <div className="bg-white/30 rounded-xl border border-slate-100 overflow-hidden shadow-sm">
@@ -676,6 +723,24 @@ export default function Home() {
           <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[26px] w-auto max-w-[50vw]" />
         </div>
         <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
+          {isPremium ? (
+            <button
+              onClick={openBillingPortal}
+              title={premiumPlan === "lifetime" ? "Lebenslanger Premium-Zugang" : "Premium-Abo verwalten"}
+              className="font-bold text-amber-500 hover:text-amber-600 transition-colors flex items-center gap-1"
+            >
+              ★ Premium
+            </button>
+          ) : (
+            <button
+              onClick={() => setUpgradeModalOpen(true)}
+              title="Werbefrei mit LinkLib Premium"
+              className="font-bold text-primary hover:text-primary-hover transition-colors"
+            >
+              Upgrade
+            </button>
+          )}
+          <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
           <span className="hidden sm:inline-block font-semibold">{userEmail}</span>
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
           <button onClick={handleLogout} className="text-slate-500 font-bold hover:text-danger transition-colors px-2">
@@ -767,8 +832,8 @@ export default function Home() {
             <div key={section.id}>
               {renderSection(section, 0)}
               
-              {/* Dezent platzierte Werbung nach jeder zweiten Hauptsektion */}
-              {(index + 1) % 2 === 0 && index !== sections.length - 1 && (
+              {/* Dezent platzierte Werbung nach jeder zweiten Hauptsektion (entfällt für Premium-Nutzer) */}
+              {!isPremium && (index + 1) % 2 === 0 && index !== sections.length - 1 && (
                 <div className="my-6 px-4 animate-in fade-in duration-500">
                   <span className="block text-micro text-slate-400 font-bold uppercase tracking-widest text-center mb-2">Anzeige</span>
                   <div className="bg-white/50 rounded-3xl border border-slate-100 overflow-hidden shadow-sm p-1">
@@ -797,6 +862,8 @@ export default function Home() {
         onConfirm={confirmData.onConfirm}
         onCancel={closeConfirm}
       />
+      {/* Premium Upgrade Modal */}
+      <UpgradeModal isOpen={upgradeModalOpen} onClose={() => setUpgradeModalOpen(false)} />
     </div>
   );
 }
