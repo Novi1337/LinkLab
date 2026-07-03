@@ -462,10 +462,18 @@ export default function Home() {
 
   if (!isLoggedIn) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-5 bg-[url('/bg.svg')] bg-[length:40px_40px] bg-center animate-in fade-in duration-500">
+      <div className="flex items-center justify-center min-h-screen p-5 bg-[url('/bg.svg')] bg-[length:40px_40px] bg-center animate-in fade-in duration-500 font-sans text-slate-800">
         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm -z-10"></div>
         <div className="w-full max-w-[420px] text-center z-10">
-          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-8 drop-shadow-sm">Link<span className="text-primary">Lab</span></h1>
+          <div className="flex items-center justify-center gap-3 mb-8 drop-shadow-sm">
+            <div className="bg-[#111827] text-white p-2 rounded-xl flex items-center justify-center w-12 h-12">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <h1 className="text-4xl font-extrabold tracking-tight text-[#111827] uppercase">LINK<span className="font-normal font-medium">LIB</span></h1>
+          </div>
           <div className="bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/50">
             <div className="flex gap-2 mb-6 border-b border-slate-200/60 pb-0">
               <button
@@ -539,9 +547,17 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen font-sans">
       <header className="max-w-[1100px] mx-auto flex justify-between items-center p-5 bg-card border-b border-transparent sticky top-0 z-20">
-        <h2 className="text-2xl font-black tracking-tight text-slate-800 m-0">Link<span className="text-primary">Lab</span></h2>
+        <div className="flex items-center gap-2">
+          <div className="bg-[#111827] text-white p-1.5 rounded-lg flex items-center justify-center w-8 h-8">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold tracking-tight text-[#111827] m-0 uppercase">LINK<span className="font-normal">LIB</span></h2>
+        </div>
         <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
           <span className="hidden sm:inline-block font-semibold">{userEmail}</span>
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
