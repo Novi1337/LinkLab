@@ -17,7 +17,24 @@ function cleanText(text: string): string {
 // Cookie-Consent-Zwischenseite trifft. Websites (inkl. YouTube/Google) erlauben diesen bekannten
 // "Link-Preview-Bots" bewusst uneingeschränkten Zugriff, weil sie sonst in Chats/Posts keine
 // Vorschau mehr anzeigen könnten. Deshalb geben wir uns hier als solcher Bot aus.
-const PREVIEW_BOT_USER_AGENT = 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)';
+//
+// X/Twitter behandelt Anfragen von Cloud-IPs (Vercel etc.) inzwischen inkonsistent - je nach
+// aktueller Anti-Bot-Laune bekommt man mit derselben Anfrage mal die echten Post-Daten, mal nur
+// eine generische Login-Wand. Es gibt dafür keine 100% zuverlässige Lösung ohne offizielle,
+// kostenpflichtige API - wir probieren darum mehrere bekannte Preview-Bot-Identitäten nacheinander
+// durch, was die Trefferquote deutlich erhöht, aber keine Garantie ist.
+const BOT_USER_AGENTS = [
+  'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+  'Twitterbot/1.0',
+  'Discordbot/2.0 (+https://discordapp.com)',
+  'WhatsApp/2.23.20.0 A',
+];
+
+// Erkennt generische Login-/Fehler-Seiten, die manche Seiten (allen voran X/Twitter) statt der
+// echten Post-Daten ausliefern, wenn sie eine Anfrage als verdächtig einstufen.
+function looksLikeBlockedPage(html: string): boolean {
+  return /Log in to (X|Twitter)|JavaScript is not available|Etwas ist schiefgelaufen|Rate limit exceeded/i.test(html);
+}
 
 // Blockiert Zugriffe auf lokale/interne/private Netzwerke, um Server-Side Request Forgery (SSRF) zu verhindern
 function isPrivateOrReservedIp(ip: string): boolean {
@@ -163,6 +180,39 @@ async function fetchOembed(provider: OembedProvider, pageUrl: string): Promise<O
   }
 }
 
+// Folgt Redirects manuell (erneute SSRF-Prüfung pro Hop) und liefert HTML + finale URL zurück,
+// oder null bei Fehlschlag/Blockade - damit der Aufrufer es mit der nächsten Bot-Identität erneut versuchen kann.
+async function fetchHtmlAsBot(startUrl: URL, userAgent: string): Promise<{ html: string; finalUrl: URL } | null> {
+  let currentUrl = startUrl;
+  let response: Response | null = null;
+
+  for (let redirectCount = 0; redirectCount < 5; redirectCount++) {
+    response = await fetch(currentUrl, {
+      headers: {
+        'User-Agent': userAgent,
+        'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
+        // Zusätzliches Sicherheitsnetz gegen die Google/YouTube Cookie-Consent-Zwischenseite
+        'Cookie': 'CONSENT=YES+1',
+      },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (!location) return null;
+      currentUrl = await assertUrlIsSafe(new URL(location, currentUrl).toString());
+      continue;
+    }
+    break;
+  }
+
+  if (!response || !response.ok) return null;
+  const html = await response.text();
+  if (looksLikeBlockedPage(html)) return null;
+  return { html, finalUrl: currentUrl };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
@@ -172,44 +222,26 @@ export async function GET(request: Request) {
   }
 
   try {
-    let currentUrl = await assertUrlIsSafe(url);
+    const currentUrl = await assertUrlIsSafe(url);
     const provider = findOembedProvider(currentUrl);
     const oembed = provider ? await fetchOembed(provider, currentUrl.toString()) : null;
 
-    let response: Response | null = null;
-
-    // Redirects werden manuell verfolgt, damit jeder Hop erneut gegen private/interne Hosts geprüft wird (SSRF-Schutz)
-    for (let redirectCount = 0; redirectCount < 5; redirectCount++) {
-      response = await fetch(currentUrl, {
-        headers: {
-          'User-Agent': PREVIEW_BOT_USER_AGENT,
-          'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
-          // Zusätzliches Sicherheitsnetz gegen die Google/YouTube Cookie-Consent-Zwischenseite,
-          // falls der Bot-User-Agent allein nicht ausreicht.
-          'Cookie': 'CONSENT=YES+1',
-        },
-        redirect: 'manual',
-        signal: AbortSignal.timeout(8000),
-      });
-
-      if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get('location');
-        if (!location) throw new Error('Redirect without location header');
-        currentUrl = await assertUrlIsSafe(new URL(location, currentUrl).toString());
-        continue;
-      }
-      break;
+    // Mehrere bekannte Bot-Identitäten nacheinander durchprobieren, bis eine brauchbares HTML liefert
+    let result: { html: string; finalUrl: URL } | null = null;
+    for (const userAgent of BOT_USER_AGENTS) {
+      result = await fetchHtmlAsBot(currentUrl, userAgent);
+      if (result) break;
     }
 
-    if (!response || !response.ok) {
+    if (!result) {
       // Ohne HTML trotzdem die oEmbed-Daten verwenden, statt komplett zu scheitern
       if (oembed) {
         return NextResponse.json({ title: oembed.title || '', description: provider ? provider.fallbackDescription(oembed) : '', image: oembed.thumbnail_url || null });
       }
       throw new Error('Failed to fetch URL');
     }
-    const html = await response.text();
-    
+    const { html } = result;
+
     const $ = cheerio.load(html);
     
     const title = cleanText(oembed?.title || $('meta[property="og:title"]').attr('content') || $('meta[name="twitter:title"]').attr('content') || $('title').text() || '');
