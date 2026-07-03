@@ -90,24 +90,15 @@ export default function Home() {
     );
     setNewLinkInputs({ ...newLinkInputs, [sectionId]: "" });
 
-    // Fetch metadata
+    // Fetch metadata utilizing our own Next.js API route
     try {
-      const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(fullUrl)}`);
+      const res = await fetch(`/api/metadata?url=${encodeURIComponent(fullUrl)}`);
+      if (!res.ok) throw new Error("Failed");
       const data = await res.json();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(data.contents, "text/html");
-
-      let title = domain;
-      const ogTitle = doc.querySelector('meta[property="og:title"]');
-      if (ogTitle) title = (ogTitle as HTMLMetaElement).content;
-
-      let desc = fullUrl;
-      const ogDesc = doc.querySelector('meta[property="og:description"]');
-      if (ogDesc) desc = (ogDesc as HTMLMetaElement).content;
-
-      let image = null;
-      const ogImage = doc.querySelector('meta[property="og:image"]');
-      if (ogImage) image = (ogImage as HTMLMetaElement).content;
+      
+      const title = data.title || domain;
+      const desc = data.description || fullUrl;
+      const image = data.image || null;
 
       setSections((prev) =>
         prev.map((s) => {
