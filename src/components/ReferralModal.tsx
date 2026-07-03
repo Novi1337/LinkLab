@@ -12,6 +12,7 @@ interface ReferralModalProps {
 type ReferralInfo = {
   code: string;
   referralCount: number;
+  rewardThreshold: number;
   rewardGranted: boolean;
   premiumUntil: string | null;
 };
@@ -21,7 +22,7 @@ function formatDate(iso: string): string {
 }
 
 // Zeigt den persönlichen Einladungslink samt Status der Empfehlungs-Prämie:
-// Für die erste erfolgreiche Empfehlung gibt es 3 Monate Premium gratis.
+// Ab 10 erfolgreichen Empfehlungen gibt es 1 Jahr Premium gratis.
 export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
   const [info, setInfo] = useState<ReferralInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
               <Gift className="w-5 h-5 text-primary" /> Freunde einladen
             </h3>
             <p className="text-sm text-slate-500 m-0 mt-1">
-              Werbe eine Person und erhalte 3 Monate Premium gratis.
+              Werbe 10 Personen und erhalte 1 Jahr Premium gratis.
             </p>
           </div>
           <button
@@ -120,10 +121,26 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
                 </button>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-600 flex flex-col gap-1.5">
-                <span>
-                  Bisher geworben: <strong className="text-brand-dark">{info.referralCount}</strong>
-                </span>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-600 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span>
+                    Bisher geworben:{" "}
+                    <strong className="text-brand-dark">
+                      {info.referralCount} / {info.rewardThreshold}
+                    </strong>
+                  </span>
+                  {!info.rewardGranted && info.referralCount < info.rewardThreshold && (
+                    <span className="text-xs text-slate-400">
+                      noch {info.rewardThreshold - info.referralCount} bis zur Prämie
+                    </span>
+                  )}
+                </div>
+                <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${Math.min(100, (info.referralCount / info.rewardThreshold) * 100)}%` }}
+                  />
+                </div>
                 {rewardActive && info.premiumUntil ? (
                   <span className="text-emerald-700 font-semibold">
                     ★ Deine Prämie ist aktiv - Premium bis {formatDate(info.premiumUntil)}.
@@ -132,8 +149,8 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
                   <span>Deine Prämie wurde bereits eingelöst.</span>
                 ) : (
                   <span>
-                    Registriert sich jemand über deinen Link, erhältst du für die erste Empfehlung{" "}
-                    <strong className="text-brand-dark">3 Monate Premium</strong> - werbefrei inkl. Inkognito-Modus.
+                    Registrieren sich {info.rewardThreshold} Personen über deinen Link, erhältst du{" "}
+                    <strong className="text-brand-dark">1 Jahr Premium</strong> - werbefrei inkl. Inkognito-Modus.
                   </span>
                 )}
               </div>

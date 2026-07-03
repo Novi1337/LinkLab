@@ -1,5 +1,5 @@
--- Empfehlungsprogramm: Freunde werben, 3 Monate Premium für die erste
--- erfolgreiche Empfehlung.
+-- Empfehlungsprogramm: Freunde werben, ab 10 erfolgreichen Empfehlungen
+-- gibt es 1 Jahr Premium.
 -- Einmalig im Supabase SQL-Editor ausführen (Dashboard -> SQL Editor -> New query).
 
 alter table public.profiles

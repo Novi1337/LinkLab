@@ -5,12 +5,13 @@ import { getSupabaseAdmin, getUserFromRequest } from "@/lib/stripe";
 // Empfehlungsprogramm:
 // GET  -> eigenen Referral-Code (wird bei Bedarf erzeugt) + Statistik laden
 // POST -> Referral-Code nach der Registrierung einlösen; der Werbende erhält
-//         für die ERSTE erfolgreiche Empfehlung 3 Monate Premium.
+//         ab 10 erfolgreichen Empfehlungen 1 Jahr Premium.
 //
 // Alle Schreibzugriffe laufen über den Service-Role-Key - Clients können die
 // Referral-Spalten nicht direkt manipulieren (Spaltenrechte, siehe supabase/referrals.sql).
 
-const REWARD_MONTHS = 3;
+const REWARD_THRESHOLD = 10;
+const REWARD_MONTHS = 12;
 
 // Nur frisch registrierte Accounts dürfen einen Code einlösen - verhindert,
 // dass sich Bestandsnutzer gegenseitig Prämien zuschieben.
@@ -69,6 +70,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     code,
     referralCount: count ?? 0,
+    rewardThreshold: REWARD_THRESHOLD,
     rewardGranted: profile?.referral_reward_granted ?? false,
     premiumUntil: profile?.referral_premium_until ?? null,
   });
@@ -141,18 +143,25 @@ export async function POST(request: Request) {
     }
   }
 
-  // Prämie: 3 Monate Premium für die ERSTE erfolgreiche Empfehlung.
+  // Prämie: 1 Jahr Premium, sobald 10 erfolgreiche Empfehlungen erreicht sind.
   // Das bedingte Update stellt sicher, dass die Prämie genau einmal vergeben wird.
   if (!referrer.referral_reward_granted) {
-    const until = new Date();
-    until.setMonth(until.getMonth() + REWARD_MONTHS);
-    const { error: rewardError } = await admin
+    const { count } = await admin
       .from("profiles")
-      .update({ referral_reward_granted: true, referral_premium_until: until.toISOString() })
-      .eq("id", referrer.id)
-      .eq("referral_reward_granted", false);
-    if (rewardError) {
-      console.error("Referral-Prämie konnte nicht gutgeschrieben werden:", rewardError);
+      .select("id", { count: "exact", head: true })
+      .eq("referred_by", referrer.id);
+
+    if ((count ?? 0) >= REWARD_THRESHOLD) {
+      const until = new Date();
+      until.setMonth(until.getMonth() + REWARD_MONTHS);
+      const { error: rewardError } = await admin
+        .from("profiles")
+        .update({ referral_reward_granted: true, referral_premium_until: until.toISOString() })
+        .eq("id", referrer.id)
+        .eq("referral_reward_granted", false);
+      if (rewardError) {
+        console.error("Referral-Prämie konnte nicht gutgeschrieben werden:", rewardError);
+      }
     }
   }
 

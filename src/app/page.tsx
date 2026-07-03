@@ -880,7 +880,7 @@ export default function Home() {
         <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
           <button
             onClick={() => setReferralModalOpen(true)}
-            title="Freunde einladen - 3 Monate Premium sichern"
+            title="Freunde einladen - 1 Jahr Premium sichern"
             className="font-bold text-slate-500 hover:text-primary transition-colors flex items-center gap-1.5"
           >
             <Gift className="w-4 h-4" />
