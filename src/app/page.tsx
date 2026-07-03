@@ -556,7 +556,7 @@ export default function Home() {
       </header>
 
       {/* TABS Navigation */}
-      <div className="max-w-[1100px] mx-auto px-5 mb-4">
+      <div className="max-w-[1100px] mx-auto px-5 mb-0">
         <div className="flex gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar pb-[-1px] items-center pt-2">
           {tabs.map((tab) => (
             <div key={tab.id} className="relative group/tab flex items-center shrink-0">
