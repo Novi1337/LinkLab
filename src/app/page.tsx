@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { AdBanner } from "@/components/AdBanner";
 import { Edit2 } from "lucide-react";
 import { PromptModal } from "@/components/PromptModal";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 type Link = {
   id: string;
@@ -141,6 +142,26 @@ export default function Home() {
     setPromptData(prev => ({ ...prev, isOpen: false }));
   };
 
+  const [confirmData, setConfirmData] = useState<{
+    isOpen: boolean;
+    title: string;
+    message?: string;
+    confirmLabel?: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    onConfirm: () => {},
+  });
+
+  const openConfirm = (title: string, message: string, onConfirm: () => void, confirmLabel?: string) => {
+    setConfirmData({ isOpen: true, title, message, confirmLabel, onConfirm });
+  };
+
+  const closeConfirm = () => {
+    setConfirmData(prev => ({ ...prev, isOpen: false }));
+  };
+
   const toggleCollapse = (sectionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setCollapsedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
@@ -267,12 +288,14 @@ export default function Home() {
   };
 
   const deleteTab = async (tabId: string) => {
-    if (!confirm("Diesen Reiter inklusive aller beinhalteten Sektionen und Links wirklich unwiderruflich löschen?")) return;
-    await supabase.from("tabs").delete().eq("id", tabId);
-    
-    const remaining = tabs.filter(t => t.id !== tabId);
-    setTabs(remaining);
-    fetchData(remaining.length > 0 ? remaining[0].id : null);
+    openConfirm("Reiter löschen?", "Dieser Reiter inklusive aller beinhalteten Sektionen und Links wird unwiderruflich gelöscht.", async () => {
+      closeConfirm();
+      await supabase.from("tabs").delete().eq("id", tabId);
+
+      const remaining = tabs.filter(t => t.id !== tabId);
+      setTabs(remaining);
+      fetchData(remaining.length > 0 ? remaining[0].id : null);
+    });
   };
 
   // Auth Handlers
@@ -386,12 +409,13 @@ export default function Home() {
     }
   };
 
-  const deleteLink = async (e: React.MouseEvent, linkId: string) => {
+  const deleteLink = (e: React.MouseEvent, linkId: string) => {
     e.stopPropagation();
-    if (confirm("Link wirklich löschen?")) {
+    openConfirm("Link löschen?", "Dieser Link wird unwiderruflich gelöscht.", async () => {
+      closeConfirm();
       await supabase.from("links").delete().eq("id", linkId);
       fetchData(activeTabId);
-    }
+    });
   };
 
   // Wird aufgerufen, wenn Links innerhalb einer Sektion neu sortiert ODER von einer anderen Sektion hinzugefügt werden
@@ -416,11 +440,12 @@ export default function Home() {
     });
   };
 
-  const deleteSection = async (sectionId: string) => {
-    if (confirm("Sektion (und ihre Untersektionen/Links) wirklich löschen?")) {
+  const deleteSection = (sectionId: string) => {
+    openConfirm("Sektion löschen?", "Diese Sektion inklusive ihrer Untersektionen und Links wird unwiderruflich gelöscht.", async () => {
+      closeConfirm();
       await supabase.from("sections").delete().eq("id", sectionId);
       fetchData(activeTabId);
-    }
+    });
   };
 
   // Render Section Recursive
@@ -762,6 +787,15 @@ export default function Home() {
         initialValue={promptData.initialValue}
         onConfirm={promptData.onConfirm}
         onCancel={closePrompt}
+      />
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmData.isOpen}
+        title={confirmData.title}
+        message={confirmData.message}
+        confirmLabel={confirmData.confirmLabel}
+        onConfirm={confirmData.onConfirm}
+        onCancel={closeConfirm}
       />
     </div>
   );
