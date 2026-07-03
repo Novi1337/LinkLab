@@ -34,6 +34,7 @@ export default function Home() {
   const [sections, setSections] = useState<Section[]>([]);
   const [newLinkInputs, setNewLinkInputs] = useState<{ [key: string]: string }>({});
   const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({});
+  const [activeLinkForm, setActiveLinkForm] = useState<string | null>(null);
 
   const toggleCollapse = (sectionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -246,6 +247,9 @@ export default function Home() {
             </h3>
           </div>
           <div className="flex gap-4 items-center">
+            <button onClick={() => setActiveLinkForm(activeLinkForm === section.id ? null : section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
+              + Link
+            </button>
             <button onClick={() => addSection(section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
               + Untersektion
             </button>
@@ -257,19 +261,22 @@ export default function Home() {
         
         {!isCollapsed && (
           <div className="animate-in slide-in-from-top-2 fade-in duration-200">
-            <form onSubmit={(e) => addLink(e, section.id)} className="flex gap-2 mb-6">
-              <input
-                type="url"
-                required
-                placeholder="https://..."
-                value={newLinkInputs[section.id] || ""}
-                onChange={(e) => setNewLinkInputs({ ...newLinkInputs, [section.id]: e.target.value })}
-                className="flex-1 p-2.5 rounded-lg border border-slate-300 outline-none focus:border-primary text-sm bg-white"
-              />
-              <button type="submit" className="bg-primary text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors whitespace-nowrap">
-                Link hinzufügen
-              </button>
-            </form>
+            {activeLinkForm === section.id && (
+              <form onSubmit={(e) => { addLink(e, section.id); setActiveLinkForm(null); }} className="flex gap-2 mb-6 animate-in slide-in-from-top-1 fade-in duration-200">
+                <input
+                  type="url"
+                  required
+                  placeholder="https://..."
+                  value={newLinkInputs[section.id] || ""}
+                  onChange={(e) => setNewLinkInputs({ ...newLinkInputs, [section.id]: e.target.value })}
+                  className="flex-1 p-2.5 rounded-lg border border-slate-300 outline-none focus:border-primary text-sm bg-white"
+                  autoFocus
+                />
+                <button type="submit" className="bg-primary text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors whitespace-nowrap">
+                  Hinzufügen
+                </button>
+              </form>
+            )}
             
             {section.links.length > 0 && (
               <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
