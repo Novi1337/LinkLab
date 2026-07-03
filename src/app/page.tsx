@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { ReactSortable } from "react-sortablejs";
 import { supabase } from "@/lib/supabaseClient";
+import { AdBanner } from "@/components/AdBanner";
 
 type Link = {
   id: string;
@@ -416,7 +417,21 @@ export default function Home() {
         </div>
 
         <ReactSortable list={sections} setList={setSections} animation={150} handle=".section-header" className="flex flex-col gap-8">
-          {sections.map((section) => renderSection(section, 0))}
+          {sections.map((section, index) => (
+            <div key={section.id}>
+              {renderSection(section, 0)}
+              
+              {/* Dezent platzierte Werbung nach jeder zweiten Hauptsektion */}
+              {(index + 1) % 2 === 0 && index !== sections.length - 1 && (
+                <div className="my-8 px-4">
+                  <span className="block text-[10px] text-slate-400 uppercase tracking-wider text-center mb-2">Anzeige</span>
+                  <div className="bg-white/50 rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                    <AdBanner dataAdSlot="INSERT_YOUR_AD_SLOT_ID_HERE" dataAdFormat="horizontal" />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </ReactSortable>
       </main>
     </div>
