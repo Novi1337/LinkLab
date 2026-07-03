@@ -4,7 +4,7 @@ export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-card py-16 px-5">
       <div className="max-w-[800px] mx-auto prose prose-slate">
-        <h1 className="text-3xl font-bold text-slate-800 mb-8">Datenschutzerklärung</h1>
+        <h1 className="text-3xl font-bold text-brand-dark mb-8">Datenschutzerklärung</h1>
         
         <h2 className="text-xl font-bold mt-6 mb-2">1. Einleitung</h2>
         <p className="mb-4">Wir nehmen den Schutz Ihrer persönlichen Daten sehr ernst. Wir behandeln Ihre personenbezogenen Daten vertraulich und entsprechend der gesetzlichen Datenschutzvorschriften sowie dieser Datenschutzerklärung.</p>

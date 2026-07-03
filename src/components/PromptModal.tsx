@@ -37,7 +37,7 @@ export function PromptModal({ isOpen, title, initialValue = "", onConfirm, onCan
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-5 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800 m-0">{title}</h3>
+          <h3 className="text-lg font-bold text-brand-dark m-0">{title}</h3>
         </div>
         <div className="p-6">
           <input
@@ -49,13 +49,13 @@ export function PromptModal({ isOpen, title, initialValue = "", onConfirm, onCan
               if (e.key === "Enter") onConfirm(value);
               if (e.key === "Escape") onCancel();
             }}
-            className="w-full p-3 rounded-xl border border-slate-300 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-slate-800"
+            className="w-full p-3 rounded-xl border border-slate-300 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-brand-dark"
           />
         </div>
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
           <button 
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-brand-dark hover:bg-slate-200 rounded-lg transition-colors"
           >
             Abbrechen
           </button>
