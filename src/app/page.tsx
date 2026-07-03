@@ -32,6 +32,12 @@ export default function Home() {
   // We'll manage a tree of sections. Root sections have no parent_id.
   const [sections, setSections] = useState<Section[]>([]);
   const [newLinkInputs, setNewLinkInputs] = useState<{ [key: string]: string }>({});
+  const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({});
+
+  const toggleCollapse = (sectionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCollapsedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -217,80 +223,97 @@ export default function Home() {
 
   // Render Section Recursive
   const renderSection = (section: Section, depth: number) => {
+    const isCollapsed = collapsedSections[section.id] || false;
+
     return (
       <div key={section.id} className={`bg-transparent ${depth > 0 ? "ml-8 mt-6 border-l-2 border-primary/20 pl-6" : ""}`}>
         <div className="section-header flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 border-b border-slate-300 pb-2 cursor-move gap-2 sm:gap-0">
-          <h3 className={`${depth > 0 ? "text-lg font-medium text-slate-700" : "text-xl font-semibold text-slate-800"} m-0`}>
-            {section.name}
-          </h3>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={(e) => toggleCollapse(section.id, e)} 
+              className="w-6 h-6 flex items-center justify-center rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+              title={isCollapsed ? "Aufklappen" : "Zuklappen"}
+            >
+              {isCollapsed ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              )}
+            </button>
+            <h3 className={`${depth > 0 ? "text-lg font-medium text-slate-700" : "text-xl font-semibold text-slate-800"} m-0`}>
+              {section.name}
+            </h3>
+          </div>
           <div className="flex gap-4 items-center">
-            {depth === 0 && (
-              <button onClick={() => addSection(section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
-                + Untersektion
-              </button>
-            )}
+            <button onClick={() => addSection(section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
+              + Untersektion
+            </button>
             <button onClick={() => deleteSection(section.id)} className="text-sm text-danger hover:opacity-80">
               Löschen
             </button>
           </div>
         </div>
         
-        <form onSubmit={(e) => addLink(e, section.id)} className="flex gap-2 mb-6">
-          <input
-            type="url"
-            required
-            placeholder="https://..."
-            value={newLinkInputs[section.id] || ""}
-            onChange={(e) => setNewLinkInputs({ ...newLinkInputs, [section.id]: e.target.value })}
-            className="flex-1 p-2.5 rounded-lg border border-slate-300 outline-none focus:border-primary text-sm bg-white"
-          />
-          <button type="submit" className="bg-primary text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors whitespace-nowrap">
-            Link hinzufügen
-          </button>
-        </form>
-        
-        {section.links.length > 0 && (
-          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
-            {section.links.map((link) => (
-              <li
-                key={link.id}
-                onClick={() => window.open(link.url, "_blank", "noopener,noreferrer")}
-                className="flex gap-4 items-center p-4 rounded-xl border border-slate-200 bg-card cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all relative group"
-              >
-                <button 
-                  onClick={(e) => deleteLink(e, link.id)}
-                  title="Link löschen"
-                  className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 text-muted hover:bg-danger hover:text-white opacity-0 group-hover:opacity-100 transition-all text-xs"
-                >
-                  ✕
-                </button>
-                <div
-                  className="w-[56px] h-[56px] shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-primary text-xl font-bold bg-cover bg-center border border-slate-100"
-                  style={link.image ? { backgroundImage: `url(${link.image})` } : {}}
-                >
-                  {!link.image && link.initial}
-                </div>
-                <div className="overflow-hidden pr-4">
-                  <a href={link.url} target="_blank" rel="noopener noreferrer" className="block text-slate-800 font-semibold mb-1 text-[15px] truncate" onClick={(e) => e.stopPropagation()}>
-                    {link.title}
-                  </a>
-                  <p className="m-0 text-muted text-[13px] line-clamp-2 leading-snug">{link.description}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        {!isCollapsed && (
+          <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+            <form onSubmit={(e) => addLink(e, section.id)} className="flex gap-2 mb-6">
+              <input
+                type="url"
+                required
+                placeholder="https://..."
+                value={newLinkInputs[section.id] || ""}
+                onChange={(e) => setNewLinkInputs({ ...newLinkInputs, [section.id]: e.target.value })}
+                className="flex-1 p-2.5 rounded-lg border border-slate-300 outline-none focus:border-primary text-sm bg-white"
+              />
+              <button type="submit" className="bg-primary text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors whitespace-nowrap">
+                Link hinzufügen
+              </button>
+            </form>
+            
+            {section.links.length > 0 && (
+              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
+                {section.links.map((link) => (
+                  <li
+                    key={link.id}
+                    onClick={() => window.open(link.url, "_blank", "noopener,noreferrer")}
+                    className="flex gap-4 items-center p-4 rounded-xl border border-slate-200 bg-card cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all relative group"
+                  >
+                    <button 
+                      onClick={(e) => deleteLink(e, link.id)}
+                      title="Link löschen"
+                      className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 text-muted hover:bg-danger hover:text-white opacity-0 group-hover:opacity-100 transition-all text-xs"
+                    >
+                      ✕
+                    </button>
+                    <div
+                      className="w-[56px] h-[56px] shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-primary text-xl font-bold bg-cover bg-center border border-slate-100"
+                      style={link.image ? { backgroundImage: `url(${link.image})` } : {}}
+                    >
+                      {!link.image && link.initial}
+                    </div>
+                    <div className="overflow-hidden pr-4">
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="block text-slate-800 font-semibold mb-1 text-[15px] truncate" onClick={(e) => e.stopPropagation()}>
+                        {link.title}
+                      </a>
+                      <p className="m-0 text-muted text-[13px] line-clamp-2 leading-snug">{link.description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-        {section.subSections.length > 0 && (
-          <ReactSortable 
-            list={section.subSections} 
-            setList={(newList) => setSections(prev => updateSectionInState(prev, section.id, s => ({...s, subSections: newList})))} 
-            animation={150} 
-            handle=".section-header" 
-            className="flex flex-col gap-4"
-          >
-            {section.subSections.map((sub) => renderSection(sub, depth + 1))}
-          </ReactSortable>
+            {section.subSections.length > 0 && (
+              <ReactSortable 
+                list={section.subSections} 
+                setList={(newList) => setSections(prev => updateSectionInState(prev, section.id, s => ({...s, subSections: newList})))} 
+                animation={150} 
+                handle=".section-header" 
+                className="flex flex-col gap-4"
+              >
+                {section.subSections.map((sub) => renderSection(sub, depth + 1))}
+              </ReactSortable>
+            )}
+          </div>
         )}
       </div>
     );
