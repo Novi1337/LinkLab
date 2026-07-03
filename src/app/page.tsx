@@ -22,6 +22,7 @@ type Section = {
   name: string;
   parent_id: string | null;
   tab_id: string | null;
+  color: string | null;
   links: Link[];
   subSections: Section[];
 };
@@ -29,7 +30,21 @@ type Section = {
 type Tab = {
   id: string;
   name: string;
+  color?: string | null;
 };
+
+// Kuratierte Akzentfarben, mit denen Nutzer einzelne Tabs/Sektionen markieren können,
+// um sie auf einen Blick unterscheiden zu können (unabhängig vom blauen Standard-Primary-Ton).
+const COLOR_PALETTE: { name: string; value: string }[] = [
+  { name: "Rot", value: "#ef4444" },
+  { name: "Orange", value: "#f97316" },
+  { name: "Amber", value: "#eab308" },
+  { name: "Grün", value: "#22c55e" },
+  { name: "Türkis", value: "#14b8a6" },
+  { name: "Blau", value: "#0284c7" },
+  { name: "Violett", value: "#8b5cf6" },
+  { name: "Pink", value: "#ec4899" },
+];
 
 // Kürzt eine Beschreibung auf eine sinnvolle Länge, ohne mitten im Wort abzuschneiden,
 // damit der Nutzer noch erkennen kann, worum es im gespeicherten Link geht.
@@ -57,6 +72,54 @@ export default function Home() {
   const [newLinkInputs, setNewLinkInputs] = useState<{ [key: string]: string }>({});
   const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({});
   const [activeLinkForm, setActiveLinkForm] = useState<string | null>(null);
+  const [colorPickerOpenId, setColorPickerOpenId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!colorPickerOpenId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest("[data-color-picker-root]")) {
+        setColorPickerOpenId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [colorPickerOpenId]);
+
+  const updateTabColor = async (tabId: string, color: string | null) => {
+    setColorPickerOpenId(null);
+    setTabs(prev => prev.map(t => t.id === tabId ? { ...t, color } : t));
+    await supabase.from("tabs").update({ color }).eq("id", tabId);
+  };
+
+  const updateSectionColor = async (sectionId: string, color: string | null) => {
+    setColorPickerOpenId(null);
+    setSections(prev => updateSectionInState(prev, sectionId, s => ({ ...s, color })));
+    await supabase.from("sections").update({ color }).eq("id", sectionId);
+  };
+
+  // Kleines Popover mit Farbmustern zum Zuweisen einer Akzentfarbe an einen Tab/eine Sektion
+  const renderColorPicker = (currentColor: string | null | undefined, onPick: (color: string | null) => void) => (
+    <div data-color-picker-root className="absolute top-full left-0 mt-1 z-30 bg-white rounded-xl shadow-lg border border-slate-200 p-2 grid grid-cols-4 gap-1.5" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => onPick(null)}
+        title="Keine Farbe"
+        className="w-5 h-5 rounded-full border border-slate-300 bg-white flex items-center justify-center text-[10px] text-slate-400 hover:border-slate-400"
+      >
+        ✕
+      </button>
+      {COLOR_PALETTE.map((c) => (
+        <button
+          key={c.value}
+          type="button"
+          onClick={() => onPick(c.value)}
+          title={c.name}
+          className="w-5 h-5 rounded-full border transition-transform hover:scale-110"
+          style={{ backgroundColor: c.value, borderColor: currentColor === c.value ? "#23466b" : "transparent" }}
+        />
+      ))}
+    </div>
+  );
 
   const [promptData, setPromptData] = useState<{
     isOpen: boolean;
@@ -127,6 +190,7 @@ export default function Home() {
         name: sec.name,
         parent_id: sec.parent_id,
         tab_id: sec.tab_id,
+        color: sec.color || null,
         subSections: [],
         links: linksData
           ? linksData
@@ -365,7 +429,10 @@ export default function Home() {
 
     return (
       <div key={section.id} className={`bg-transparent ${depth > 0 ? "ml-8 mt-6 border-l-2 border-primary/20 pl-6" : ""}`}>
-        <div className="section-header flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 border-b border-slate-300 pb-2 cursor-move gap-2 sm:gap-0 group">
+        <div
+          className="section-header flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 border-b border-slate-300 pb-2 cursor-move gap-2 sm:gap-0 group"
+          style={section.color ? { borderBottomColor: section.color } : undefined}
+        >
           <div className="flex items-center gap-3">
             <button 
               onClick={(e) => toggleCollapse(section.id, e)} 
@@ -378,6 +445,16 @@ export default function Home() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
               )}
             </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setColorPickerOpenId(colorPickerOpenId === `section-${section.id}` ? null : `section-${section.id}`)}
+                title="Farbe zuweisen"
+                className="w-3 h-3 rounded-full shrink-0 border border-slate-300 hover:scale-125 transition-transform"
+                style={{ backgroundColor: section.color || "transparent" }}
+              />
+              {colorPickerOpenId === `section-${section.id}` && renderColorPicker(section.color, (color) => updateSectionColor(section.id, color))}
+            </div>
             <h3 className={`${depth > 0 ? "text-lg font-medium text-brand-dark" : "text-xl font-semibold text-brand-dark"} m-0 flex items-center gap-2 group/heading cursor-pointer`} onClick={() => renameSection(section.id, section.name)} title="Hier klicken zum Bearbeiten">
               {section.name}
               <Edit2 className="w-4 h-4 text-slate-300 opacity-0 group-hover/heading:opacity-100 transition-opacity" />
@@ -600,13 +677,23 @@ export default function Home() {
                     ? "border-primary text-primary" 
                     : "border-transparent text-slate-500 hover:text-brand-dark"
                 }`}
+                style={activeTabId === tab.id && tab.color ? { borderColor: tab.color, color: tab.color } : undefined}
               >
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); setColorPickerOpenId(colorPickerOpenId === `tab-${tab.id}` ? null : `tab-${tab.id}`); }}
+                  title="Farbe zuweisen"
+                  className="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300 hover:scale-125 transition-transform"
+                  style={{ backgroundColor: tab.color || "transparent" }}
+                />
                 {tab.name}
                 <Edit2 
                   onClick={(e) => { e.stopPropagation(); renameTab(tab.id, tab.name); }} 
                   className="w-3.5 h-3.5 transition-opacity opacity-0 group-hover/tab:opacity-100 hover:text-primary-hover"
                 />
               </button>
+              {colorPickerOpenId === `tab-${tab.id}` && renderColorPicker(tab.color, (color) => updateTabColor(tab.id, color))}
               
               {/* Tab Delete Icon */}
               {tabs.length > 1 && (
