@@ -58,7 +58,7 @@ export default function OpengraphImage() {
             opacity: 0.85,
           }}
         >
-          Deine kostenlose Link-Bibliothek in der Cloud
+          Deine diskrete Link-Bibliothek in der Cloud
         </div>
         <div
           style={{

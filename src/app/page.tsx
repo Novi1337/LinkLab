@@ -818,7 +818,7 @@ export default function Home() {
               <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[80px] w-auto max-w-full" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold mb-2">
-              Deine kostenlose Link-Bibliothek in der Cloud
+              Deine diskrete Link-Bibliothek in der Cloud
             </h1>
             <p className="text-slate-500 font-medium mb-8">
               Lesezeichen speichern, in Ordnern organisieren und von jedem Gerät abrufen.
