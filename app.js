@@ -178,11 +178,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const initial = domain.replace(/^www\./, '').charAt(0).toUpperCase();
 
+      // Ensure the generated url starts with a valid protocol if missing, so window.open doesn't resolve it as a relative path
+      let fullUrl = url;
+      if (!/^https?:\/\//i.test(fullUrl)) {
+        fullUrl = 'http://' + fullUrl;
+      }
+
       linkItem.innerHTML = `
         <div class="thumb">${initial}</div>
         <div class="link-meta">
-          <a href="${url}" target="_blank" rel="noopener noreferrer">${domain}</a>
-          <p>${url}</p>
+          <a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${domain}</a>
+          <p>${fullUrl}</p>
         </div>
       `;
 
@@ -190,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
       linkItem.addEventListener('click', (event) => {
         // Prevent click if user clicked exactly on the anchor tag to avoid double trigger
         if(event.target.tagName !== 'A'){
-          window.open(url, '_blank', 'noopener,noreferrer');
+          window.open(fullUrl, '_blank', 'noopener,noreferrer');
         }
       });
 
