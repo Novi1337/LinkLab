@@ -101,8 +101,15 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
 
           {error && <p className="text-sm text-danger m-0">{error}</p>}
 
-          <p className="text-[11px] text-slate-400 m-0 mt-1 text-center">
+          <p className="text-[11px] text-slate-400 m-0 mt-1 text-center leading-relaxed">
             Sichere Zahlung über Stripe · Abos jederzeit kündbar
+            <br />
+            Mit dem Kauf akzeptierst du die{" "}
+            <a href="/agb" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">AGB</a>{" "}
+            und verlangst ausdrücklich, dass die Premium-Funktionen sofort – vor Ablauf der
+            Widerrufsfrist – freigeschaltet werden. Dir ist bekannt, dass dein{" "}
+            <a href="/widerruf" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Widerrufsrecht</a>{" "}
+            damit nach Maßgabe der gesetzlichen Regelungen erlischt.
           </p>
         </div>
       </div>

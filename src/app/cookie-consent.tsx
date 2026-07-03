@@ -10,6 +10,12 @@ export function CookieConsent() {
     const consent = localStorage.getItem("cookie-consent");
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowBanner(!consent);
+
+    // Banner erneut öffnen (z. B. über "Cookie-Einstellungen" im Footer),
+    // damit die Einwilligung jederzeit geändert/widerrufen werden kann
+    const handleOpenSettings = () => setShowBanner(true);
+    window.addEventListener("open-cookie-settings", handleOpenSettings);
+    return () => window.removeEventListener("open-cookie-settings", handleOpenSettings);
   }, []);
 
   const acceptCookies = () => {
@@ -23,6 +29,7 @@ export function CookieConsent() {
     localStorage.setItem("cookie-consent", "declined");
     setShowBanner(false);
     // Ensure no tracking scripts are loaded
+    window.dispatchEvent(new Event("consent-changed"));
   };
 
   if (!showBanner) return null;

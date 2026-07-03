@@ -4,12 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { ReactSortable } from "react-sortablejs";
 import { supabase } from "@/lib/supabaseClient";
 import { AdBanner } from "@/components/AdBanner";
-import { Edit2, Eye, EyeOff, User } from "lucide-react";
+import { Edit2, Eye, EyeOff, Gift } from "lucide-react";
 import { PromptModal } from "@/components/PromptModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { IncognitoPasswordModal } from "@/components/IncognitoPasswordModal";
-import { AccountModal } from "@/components/AccountModal";
+import { ReferralModal } from "@/components/ReferralModal";
+import { LegalFooter } from "@/components/LegalFooter";
 
 type Link = {
   id: string;
@@ -79,7 +80,6 @@ export default function Home() {
   const [userEmail, setUserEmail] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
-  const [isAccountOpen, setIsAccountOpen] = useState(false);
   
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -90,10 +90,14 @@ export default function Home() {
   const [activeLinkForm, setActiveLinkForm] = useState<string | null>(null);
   const [colorPickerOpenId, setColorPickerOpenId] = useState<string | null>(null);
 
-  // Premium: null = noch nicht geladen, sonst der aktive Plan (oder "" = kein Premium)
+  // Premium: null = noch nicht geladen, sonst der aktive Plan (oder "" = kein Premium).
+  // Zusätzlich kann zeitlich begrenztes Premium aus dem Empfehlungsprogramm aktiv sein.
   const [premiumPlan, setPremiumPlan] = useState<string | null>(null);
+  const [referralUntil, setReferralUntil] = useState<string | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
-  const isPremium = !!premiumPlan;
+  const [referralModalOpen, setReferralModalOpen] = useState(false);
+  const referralPremiumActive = !!referralUntil && new Date(referralUntil) > new Date();
+  const isPremium = !!premiumPlan || referralPremiumActive;
 
   // Inkognito-Modus (Premium): entsperrt = private Reiter sichtbar.
   // Der Hash des Inkognito-Passworts wird zusammen mit dem Premium-Status geladen.
@@ -110,11 +114,25 @@ export default function Home() {
     if (!sessionData.session) return;
     const { data } = await supabase
       .from("profiles")
-      .select("premium_plan, incognito_password_hash")
+      .select("premium_plan, incognito_password_hash, referral_premium_until")
       .eq("id", sessionData.session.user.id)
       .maybeSingle();
     setPremiumPlan(data?.premium_plan || "");
+    setReferralUntil(data?.referral_premium_until || null);
     setIncognitoHash(data?.incognito_password_hash || null);
+  }, []);
+
+  // Referral-Link (?ref=CODE): Code lokal merken, damit er nach der Registrierung
+  // eingelöst werden kann - auch wenn dazwischen ein OAuth-Redirect liegt.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref && /^[A-Za-z0-9]{4,16}$/.test(ref)) {
+      localStorage.setItem("linklib_pending_ref", ref.toUpperCase());
+      params.delete("ref");
+      const query = params.toString();
+      window.history.replaceState({}, "", window.location.pathname + (query ? `?${query}` : ""));
+    }
   }, []);
 
   // Nach Rückkehr von der Stripe-Checkout-Seite: Status neu laden und URL bereinigen.
@@ -318,6 +336,24 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // Nach Login/Registrierung: gemerkten Referral-Code serverseitig einlösen.
+    // Der Server prüft alles Weitere (nur neue Accounts, kein Selbst-Referral, einmalig).
+    const redeemPendingReferral = async (accessToken: string) => {
+      const code = localStorage.getItem("linklib_pending_ref");
+      if (!code) return;
+      try {
+        await fetch("/api/referral", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ code }),
+        });
+        // Antwort erhalten (eingelöst oder abgelehnt) -> nicht erneut versuchen
+        localStorage.removeItem("linklib_pending_ref");
+      } catch {
+        // Netzwerkfehler: Code behalten und beim nächsten Laden erneut versuchen
+      }
+    };
+
     // onAuthStateChange feuert beim Registrieren sofort mit der aktuellen Session (Event "INITIAL_SESSION"),
     // ein zusätzlicher separater getSession()-Aufruf hier würde fetchData() doppelt und parallel auslösen
     // (Race Condition: doppelter "Startseite"-Tab für neue Nutzer).
@@ -327,6 +363,7 @@ export default function Home() {
         setUserEmail(session.user.email || "");
         fetchData(null);
         fetchPremiumStatus();
+        redeemPendingReferral(session.access_token);
       } else {
         setIsLoggedIn(false);
         setUserEmail("");
@@ -334,6 +371,7 @@ export default function Home() {
         setTabs([]);
         setActiveTabId(null);
         setPremiumPlan(null);
+        setReferralUntil(null);
         setIncognitoUnlocked(false);
         setIncognitoHash(null);
       }
@@ -827,6 +865,7 @@ export default function Home() {
               </button>
             </div>
           </div>
+          <LegalFooter className="mt-6" />
         </div>
       </div>
     );
@@ -839,10 +878,25 @@ export default function Home() {
           <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[26px] w-auto max-w-[50vw]" />
         </div>
         <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
+          <button
+            onClick={() => setReferralModalOpen(true)}
+            title="Freunde einladen - 3 Monate Premium sichern"
+            className="font-bold text-slate-500 hover:text-primary transition-colors flex items-center gap-1.5"
+          >
+            <Gift className="w-4 h-4" />
+            <span className="hidden sm:inline">Einladen</span>
+          </button>
+          <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
           {isPremium ? (
             <button
-              onClick={openBillingPortal}
-              title={premiumPlan === "lifetime" ? "Lebenslanger Premium-Zugang" : "Premium-Abo verwalten"}
+              onClick={premiumPlan ? openBillingPortal : () => setUpgradeModalOpen(true)}
+              title={
+                premiumPlan === "lifetime"
+                  ? "Lebenslanger Premium-Zugang"
+                  : premiumPlan
+                    ? "Premium-Abo verwalten"
+                    : `Premium über Empfehlungsprogramm bis ${referralUntil ? new Date(referralUntil).toLocaleDateString("de-DE") : ""}`
+              }
               className="font-bold text-amber-500 hover:text-amber-600 transition-colors flex items-center gap-1"
             >
               ★ Premium
@@ -857,15 +911,7 @@ export default function Home() {
             </button>
           )}
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
-          {/* Klick auf die Email (bzw. das User-Icon auf Mobile) öffnet die Kontoverwaltung */}
-          <button
-            onClick={() => setIsAccountOpen(true)}
-            title="Konto verwalten"
-            className="flex items-center font-semibold hover:text-primary transition-colors"
-          >
-            <User className="w-4 h-4 sm:hidden" />
-            <span className="hidden sm:inline-block">{userEmail}</span>
-          </button>
+          <span className="hidden sm:inline-block font-semibold">{userEmail}</span>
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
           <button onClick={handleLogout} className="text-slate-500 font-bold hover:text-danger transition-colors px-2">
             Logout
@@ -996,15 +1042,9 @@ export default function Home() {
           ))}
         </ReactSortable>
       </main>
-
-      {/* Dezenter Hinweis auf den einbettbaren Save-Button & das Bookmarklet */}
-      <footer className="max-w-shell mx-auto px-5 pb-8 -mt-10 text-center">
-        <a
-          href="/save-button"
-          className="text-xs text-slate-400 hover:text-primary transition-colors font-medium"
-        >
-          Save-Button &amp; Bookmarklet – Links von überall mit einem Klick speichern
-        </a>
+      {/* Rechtliche Pflichtlinks (Impressum, Datenschutz, AGB, Widerruf, Cookie-Einstellungen) */}
+      <footer className="max-w-shell mx-auto px-5 pb-8 text-center">
+        <LegalFooter />
       </footer>
       {/* Prompt Modal */}
       <PromptModal
@@ -1025,13 +1065,8 @@ export default function Home() {
       />
       {/* Premium Upgrade Modal */}
       <UpgradeModal isOpen={upgradeModalOpen} onClose={() => setUpgradeModalOpen(false)} />
-      {/* Kontoverwaltung (Abo, Passwort, Account löschen) */}
-      <AccountModal
-        isOpen={isAccountOpen}
-        userEmail={userEmail}
-        onClose={() => setIsAccountOpen(false)}
-        onSubscriptionChanged={fetchPremiumStatus}
-      />
+      {/* Freunde einladen (Empfehlungsprogramm) */}
+      <ReferralModal isOpen={referralModalOpen} onClose={() => setReferralModalOpen(false)} />
       {/* Inkognito Passwort Modal */}
       <IncognitoPasswordModal
         isOpen={incognitoModal.isOpen}
