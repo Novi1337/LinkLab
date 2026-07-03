@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import { ReactSortable } from "react-sortablejs";
 import { supabase } from "@/lib/supabaseClient";
 import { AdBanner } from "@/components/AdBanner";
-import { Edit2, Eye, EyeOff } from "lucide-react";
+import { Edit2, Eye, EyeOff, User } from "lucide-react";
 import { PromptModal } from "@/components/PromptModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { IncognitoPasswordModal } from "@/components/IncognitoPasswordModal";
+import { AccountModal } from "@/components/AccountModal";
 
 type Link = {
   id: string;
@@ -78,6 +79,7 @@ export default function Home() {
   const [userEmail, setUserEmail] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -855,7 +857,15 @@ export default function Home() {
             </button>
           )}
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
-          <span className="hidden sm:inline-block font-semibold">{userEmail}</span>
+          {/* Klick auf die Email (bzw. das User-Icon auf Mobile) öffnet die Kontoverwaltung */}
+          <button
+            onClick={() => setIsAccountOpen(true)}
+            title="Konto verwalten"
+            className="flex items-center font-semibold hover:text-primary transition-colors"
+          >
+            <User className="w-4 h-4 sm:hidden" />
+            <span className="hidden sm:inline-block">{userEmail}</span>
+          </button>
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
           <button onClick={handleLogout} className="text-slate-500 font-bold hover:text-danger transition-colors px-2">
             Logout
@@ -986,6 +996,16 @@ export default function Home() {
           ))}
         </ReactSortable>
       </main>
+
+      {/* Dezenter Hinweis auf den einbettbaren Save-Button & das Bookmarklet */}
+      <footer className="max-w-shell mx-auto px-5 pb-8 -mt-10 text-center">
+        <a
+          href="/save-button"
+          className="text-xs text-slate-400 hover:text-primary transition-colors font-medium"
+        >
+          Save-Button &amp; Bookmarklet – Links von überall mit einem Klick speichern
+        </a>
+      </footer>
       {/* Prompt Modal */}
       <PromptModal
         isOpen={promptData.isOpen}
@@ -1005,6 +1025,13 @@ export default function Home() {
       />
       {/* Premium Upgrade Modal */}
       <UpgradeModal isOpen={upgradeModalOpen} onClose={() => setUpgradeModalOpen(false)} />
+      {/* Kontoverwaltung (Abo, Passwort, Account löschen) */}
+      <AccountModal
+        isOpen={isAccountOpen}
+        userEmail={userEmail}
+        onClose={() => setIsAccountOpen(false)}
+        onSubscriptionChanged={fetchPremiumStatus}
+      />
       {/* Inkognito Passwort Modal */}
       <IncognitoPasswordModal
         isOpen={incognitoModal.isOpen}
