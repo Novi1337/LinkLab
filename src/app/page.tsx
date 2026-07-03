@@ -398,31 +398,31 @@ export default function Home() {
             )}
             
             {section.links.length > 0 && (
-              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
                 {section.links.map((link) => (
                   <li
                     key={link.id}
                     onClick={() => window.open(link.url, "_blank", "noopener,noreferrer")}
-                    className="flex gap-4 items-center p-4 rounded-xl border border-slate-200 bg-card cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all relative group/card"
+                    className="flex gap-3 items-center py-2 px-3 rounded-xl border border-slate-200 bg-card cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all relative group/card"
                   >
                     <button 
                       onClick={(e) => deleteLink(e, link.id)}
                       title="Link löschen"
-                      className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 text-muted hover:bg-danger hover:text-white opacity-0 group-hover/card:opacity-100 transition-all text-xs z-10"
+                      className="absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-slate-100 text-muted hover:bg-danger hover:text-white opacity-0 group-hover/card:opacity-100 transition-all text-xs z-10"
                     >
                       ✕
                     </button>
                     <div
-                      className="w-[56px] h-[56px] shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-primary text-xl font-bold bg-cover bg-center border border-slate-100"
+                      className="w-[34px] h-[34px] shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-primary text-sm font-bold bg-cover bg-center border border-slate-100"
                       style={link.image ? { backgroundImage: `url(${link.image})` } : {}}
                     >
                       {!link.image && link.initial}
                     </div>
-                    <div className="overflow-hidden pr-4">
-                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="block text-brand-dark font-semibold mb-1 text-[15px] truncate" onClick={(e) => e.stopPropagation()}>
+                    <div className="overflow-hidden pr-4 flex-1">
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="block text-brand-dark font-semibold text-[14px] truncate" onClick={(e) => e.stopPropagation()}>
                         {link.title}
                       </a>
-                      <p className="m-0 text-muted text-[13px] line-clamp-2 leading-snug">{link.description}</p>
+                      <p className="m-0 text-muted text-[12px] truncate leading-snug">{link.description}</p>
                     </div>
                   </li>
                 ))}
