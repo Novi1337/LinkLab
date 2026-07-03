@@ -35,11 +35,16 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
       const token = sessionData.session?.access_token;
       if (!token) throw new Error();
       const res = await fetch("/api/referral", { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        // Server-Fehlermeldung anzeigen, damit die Ursache sichtbar ist (statt generischer Meldung)
+        const body = await res.json().catch(() => null);
+        throw new Error(typeof body?.error === "string" ? body.error : "");
+      }
       setInfo(await res.json());
       setError(null);
-    } catch {
-      setError("Dein Einladungslink konnte nicht geladen werden. Bitte versuche es erneut.");
+    } catch (err) {
+      const detail = err instanceof Error && err.message ? ` (${err.message})` : "";
+      setError(`Dein Einladungslink konnte nicht geladen werden. Bitte versuche es erneut.${detail}`);
     }
   }, []);
 

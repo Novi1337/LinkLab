@@ -30,7 +30,18 @@ export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
 
-  const admin = getSupabaseAdmin();
+  // Env-Fehler (fehlender Service-Role-Key) sauber melden statt generischem 500
+  let admin;
+  try {
+    admin = getSupabaseAdmin();
+  } catch (err) {
+    console.error("Supabase-Admin-Client nicht verfügbar:", err);
+    return NextResponse.json(
+      { error: "Server-Konfiguration unvollständig - SUPABASE_SERVICE_ROLE_KEY prüfen" },
+      { status: 500 }
+    );
+  }
+
   const { data: profile, error } = await admin
     .from("profiles")
     .select("referral_code, referral_reward_granted, referral_premium_until")
@@ -38,7 +49,10 @@ export async function GET(request: Request) {
     .maybeSingle();
   if (error) {
     console.error("Referral-Profil konnte nicht geladen werden:", error);
-    return NextResponse.json({ error: "Referral-Daten konnten nicht geladen werden" }, { status: 500 });
+    return NextResponse.json(
+      { error: `Referral-Daten konnten nicht geladen werden (${error.code ?? "DB"}: ${error.message})` },
+      { status: 500 }
+    );
   }
 
   // Code bei Bedarf erzeugen (mit Retry, falls der zufällige Code kollidiert)
@@ -54,7 +68,10 @@ export async function GET(request: Request) {
       } else if (upsertError.code !== "23505") {
         // 23505 = Unique-Kollision -> einfach neuen Code versuchen
         console.error("Referral-Code konnte nicht gespeichert werden:", upsertError);
-        return NextResponse.json({ error: "Referral-Code konnte nicht erstellt werden" }, { status: 500 });
+        return NextResponse.json(
+          { error: `Referral-Code konnte nicht erstellt werden (${upsertError.code ?? "DB"}: ${upsertError.message})` },
+          { status: 500 }
+        );
       }
     }
     if (!code) {
