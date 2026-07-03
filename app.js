@@ -186,6 +186,14 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
 
+      // Make the entire item clickable
+      linkItem.addEventListener('click', (event) => {
+        // Prevent click if user clicked exactly on the anchor tag to avoid double trigger
+        if(event.target.tagName !== 'A'){
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }
+      });
+
       listEl.prepend(linkItem);
       input.value = '';
     });
