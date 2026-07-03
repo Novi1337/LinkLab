@@ -46,6 +46,15 @@ export async function getUserFromRequest(request: Request) {
   return data.user;
 }
 
+// Wie getUserFromRequest, liefert den User aber nur zurück, wenn er die
+// Admin-Rolle besitzt (app_metadata.role = 'admin', siehe supabase/admins.sql).
+// app_metadata ist ausschließlich serverseitig änderbar und daher fälschungssicher.
+export async function getAdminFromRequest(request: Request) {
+  const user = await getUserFromRequest(request);
+  if (!user || user.app_metadata?.role !== "admin") return null;
+  return user;
+}
+
 // Serverseitiges Mapping von Plan-Name auf Stripe-Price-ID.
 // Der Client schickt NUR den Plan-Namen - niemals Preise oder Price-IDs,
 // damit niemand den Preis manipulieren kann.
