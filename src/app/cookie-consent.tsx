@@ -16,7 +16,8 @@ export function CookieConsent() {
   const acceptCookies = () => {
     localStorage.setItem("cookie-consent", "accepted");
     setShowBanner(false);
-    // Here you would trigger the loading of Google AdSense / Analytics scripts
+    // Trigger custom event so AdSense scripts on the page load immediately without a hard refresh
+    window.dispatchEvent(new Event("consent-changed"));
   };
 
   const declineCookies = () => {

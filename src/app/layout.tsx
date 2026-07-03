@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { CookieConsent } from "./cookie-consent";
+import { AdSense } from "@/components/AdSense";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,6 +24,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Ersetze diese ID später durch deine eigene von Google AdSense
+  const adSensePublisherId = process.env.NEXT_PUBLIC_ADSENSE_ID || "ca-pub-XXXXXXXXXXXXX";
+
   return (
     <html
       lang="de"
@@ -31,6 +35,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <CookieConsent />
+        <AdSense pId={adSensePublisherId} />
       </body>
     </html>
   );
