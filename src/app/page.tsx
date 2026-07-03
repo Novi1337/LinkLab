@@ -465,9 +465,8 @@ export default function Home() {
       <div className="flex items-center justify-center min-h-screen p-5 bg-[url('/bg.svg')] bg-[length:40px_40px] bg-center animate-in fade-in duration-500 font-sans text-slate-800">
         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm -z-10"></div>
         <div className="w-full max-w-[420px] text-center z-10">
-          <div className="flex items-center justify-center gap-3 mb-8 drop-shadow-sm">
-            <img src="/logo.svg" alt="LinkLib Logo" className="w-[85px] h-[85px] drop-shadow-md rounded-2xl" />
-            <h1 className="text-[3.25rem] font-[900] tracking-tighter text-[#0B132B] uppercase">LINK<span className="font-medium text-[#0B132B]">LIB</span></h1>
+          <div className="flex items-center justify-center mb-8 drop-shadow-sm">
+            <img src="/logo.svg" alt="LinkLib Logo" className="h-[70px] w-auto" />
           </div>
           <div className="bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/50">
             <div className="flex gap-2 mb-6 border-b border-slate-200/60 pb-0">
@@ -543,10 +542,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen font-sans">
-      <header className="max-w-[1100px] mx-auto flex justify-between items-center p-5 bg-transparent border-b border-transparent sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="LinkLib Logo" className="w-[50px] h-[50px] drop-shadow-sm rounded-xl" />
-          <h2 className="text-[1.8rem] font-[900] tracking-tighter text-[#0B132B] m-0 uppercase">LINK<span className="font-medium">LIB</span></h2>
+      <header className="max-w-[1100px] mx-auto flex justify-between items-center px-5 py-6 bg-transparent border-b border-transparent sticky top-0 z-20">
+        <div className="flex items-center">
+          <img src="/logo.svg" alt="LinkLib Logo" className="h-[40px] w-auto relative -translate-x-3" />
         </div>
         <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
           <span className="hidden sm:inline-block font-semibold">{userEmail}</span>
