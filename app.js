@@ -185,10 +185,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       linkItem.innerHTML = `
-        <div class="thumb">${initial}</div>
+        <div class="thumb" id="thumb-${sectionCounter}">${initial}</div>
         <div class="link-meta">
-          <a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${domain}</a>
-          <p>${fullUrl}</p>
+          <a href="${fullUrl}" target="_blank" rel="noopener noreferrer" id="title-${sectionCounter}">${domain}</a>
+          <p id="desc-${sectionCounter}">Lade Metadaten...</p>
         </div>
       `;
 
@@ -202,6 +202,61 @@ document.addEventListener('DOMContentLoaded', () => {
 
       listEl.prepend(linkItem);
       input.value = '';
+
+      // Fetch metadata via CORS proxy
+      const thumbEl = linkItem.querySelector('.thumb');
+      const titleEl = linkItem.querySelector('.link-meta a');
+      const descEl = linkItem.querySelector('.link-meta p');
+
+      fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(fullUrl)}`)
+        .then(response => {
+          if (response.ok) return response.json();
+          throw new Error('Network response was not ok.');
+        })
+        .then(data => {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(data.contents, 'text/html');
+          
+          let pageTitle = domain;
+          const titleTag = doc.querySelector('title');
+          const ogTitle = doc.querySelector('meta[property="og:title"]');
+          if (ogTitle && ogTitle.content) pageTitle = ogTitle.content;
+          else if (titleTag && titleTag.innerText) pageTitle = titleTag.innerText;
+
+          let pageDesc = fullUrl;
+          const ogDesc = doc.querySelector('meta[property="og:description"]');
+          const metaDesc = doc.querySelector('meta[name="description"]');
+          if (ogDesc && ogDesc.content) pageDesc = ogDesc.content;
+          else if (metaDesc && metaDesc.content) pageDesc = metaDesc.content;
+
+          let pageImg = null;
+          const ogImage = doc.querySelector('meta[property="og:image"]');
+          if (ogImage && ogImage.content) pageImg = ogImage.content;
+          else {
+            const icon = doc.querySelector('link[rel="icon"], link[rel="shortcut icon"]');
+            if (icon && icon.href) {
+              // Construct absolute url if relative
+              try {
+                pageImg = new URL(icon.getAttribute('href'), fullUrl).href;
+              } catch(e) {}
+            }
+          }
+
+          // Update UI
+          titleEl.textContent = pageTitle;
+          descEl.textContent = pageDesc.length > 100 ? pageDesc.substring(0, 100) + '...' : pageDesc;
+          
+          if (pageImg) {
+            thumbEl.innerHTML = '';
+            thumbEl.style.backgroundImage = `url('${pageImg}')`;
+            thumbEl.style.backgroundSize = 'cover';
+            thumbEl.style.backgroundPosition = 'center';
+          }
+        })
+        .catch(err => {
+          // Fallback if fetching fails
+          descEl.textContent = fullUrl;
+        });
     });
   });
 });
