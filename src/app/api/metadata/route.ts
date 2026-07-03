@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 import { isIP } from 'net';
 import { lookup } from 'dns/promises';
+import { decodeHTML } from 'entities';
+
+// Manche Seiten (z. B. Vimeo) kodieren HTML-Entities in ihren Meta-Tags doppelt
+// ("&amp;rsquo;" statt "&rsquo;"), wodurch nach dem normalen HTML-Parsing noch
+// sichtbare Entity-Reste wie "&rsquo;" übrig bleiben. Ein zweiter Decode-Durchlauf räumt das auf.
+function cleanText(text: string): string {
+  return decodeHTML(decodeHTML(text));
+}
 
 // WhatsApp/Facebook/Twitter erhalten von so gut wie jeder Website zuverlässig volle OG-Daten
 // (Titel, Beschreibung, Thumbnail) - selbst wenn ein generischer "Chrome unter Windows"-User-Agent
@@ -70,24 +78,89 @@ async function assertUrlIsSafe(rawUrl: string): Promise<URL> {
   return parsed;
 }
 
-type YoutubeOembed = { title?: string; thumbnail_url?: string; author_name?: string };
+type OembedData = { title?: string; thumbnail_url?: string; author_name?: string };
 
-// YouTube liefert über die offizielle oEmbed-API zuverlässig Titel + Thumbnail als JSON,
-// völlig unabhängig von Consent-Wall/Bot-Erkennung beim normalen HTML-Scraping.
-async function fetchYoutubeOembed(pageUrl: string): Promise<YoutubeOembed | null> {
+type OembedProvider = {
+  name: string;
+  hosts: string[];
+  endpoint: (pageUrl: string) => string;
+  // Text, der als Beschreibung verwendet wird, falls die Seite selbst keine liefert (z. B. Twitter/X, Reddit)
+  fallbackDescription: (data: OembedData) => string;
+};
+
+// Viele bekannte Plattformen bieten eine offizielle oEmbed-API an, die zuverlässig Titel/Thumbnail
+// als JSON liefert - unabhängig von Bot-Sperren, Consent-Walls oder Login-Interstitials, die beim
+// reinen HTML-Scraping sonst im Weg stehen (z. B. bei Twitter/X, TikTok, Reddit).
+const OEMBED_PROVIDERS: OembedProvider[] = [
+  {
+    name: 'YouTube',
+    hosts: ['youtube.com', 'youtu.be', 'm.youtube.com'],
+    endpoint: (u) => `https://www.youtube.com/oembed?url=${encodeURIComponent(u)}&format=json`,
+    fallbackDescription: (d) => (d.author_name ? `Video von ${d.author_name}` : 'YouTube-Video'),
+  },
+  {
+    name: 'Vimeo',
+    hosts: ['vimeo.com'],
+    endpoint: (u) => `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(u)}`,
+    fallbackDescription: (d) => (d.author_name ? `Video von ${d.author_name}` : 'Vimeo-Video'),
+  },
+  {
+    name: 'X/Twitter',
+    hosts: ['twitter.com', 'x.com'],
+    endpoint: (u) => `https://publish.twitter.com/oembed?url=${encodeURIComponent(u)}`,
+    fallbackDescription: (d) => (d.author_name ? `Beitrag von ${d.author_name}` : 'Tweet'),
+  },
+  {
+    name: 'SoundCloud',
+    hosts: ['soundcloud.com'],
+    endpoint: (u) => `https://soundcloud.com/oembed?url=${encodeURIComponent(u)}&format=json`,
+    fallbackDescription: (d) => (d.author_name ? `Track von ${d.author_name}` : 'SoundCloud-Track'),
+  },
+  {
+    name: 'Spotify',
+    hosts: ['open.spotify.com'],
+    endpoint: (u) => `https://open.spotify.com/oembed?url=${encodeURIComponent(u)}`,
+    fallbackDescription: () => 'Auf Spotify anhören',
+  },
+  {
+    name: 'TikTok',
+    hosts: ['tiktok.com'],
+    endpoint: (u) => `https://www.tiktok.com/oembed?url=${encodeURIComponent(u)}`,
+    fallbackDescription: (d) => (d.author_name ? `Video von ${d.author_name}` : 'TikTok-Video'),
+  },
+  {
+    name: 'Reddit',
+    hosts: ['reddit.com'],
+    endpoint: (u) => `https://www.reddit.com/oembed?url=${encodeURIComponent(u)}`,
+    fallbackDescription: () => 'Reddit-Beitrag',
+  },
+  {
+    name: 'Flickr',
+    hosts: ['flickr.com'],
+    endpoint: (u) => `https://www.flickr.com/services/oembed/?url=${encodeURIComponent(u)}&format=json`,
+    fallbackDescription: (d) => (d.author_name ? `Foto von ${d.author_name}` : 'Flickr-Foto'),
+  },
+  {
+    name: 'CodePen',
+    hosts: ['codepen.io'],
+    endpoint: (u) => `https://codepen.io/api/oembed?url=${encodeURIComponent(u)}&format=json`,
+    fallbackDescription: () => 'CodePen',
+  },
+];
+
+function findOembedProvider(parsed: URL): OembedProvider | null {
+  const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+  return OEMBED_PROVIDERS.find((p) => p.hosts.some((h) => host === h || host.endsWith(`.${h}`))) || null;
+}
+
+async function fetchOembed(provider: OembedProvider, pageUrl: string): Promise<OembedData | null> {
   try {
-    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(pageUrl)}&format=json`;
-    const res = await fetch(oembedUrl, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(provider.endpoint(pageUrl), { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
     return await res.json();
   } catch {
     return null;
   }
-}
-
-function isYoutubeUrl(parsed: URL): boolean {
-  const host = parsed.hostname.replace(/^www\./, '');
-  return host === 'youtube.com' || host === 'youtu.be' || host === 'm.youtube.com';
 }
 
 export async function GET(request: Request) {
@@ -100,7 +173,8 @@ export async function GET(request: Request) {
 
   try {
     let currentUrl = await assertUrlIsSafe(url);
-    const oembed = isYoutubeUrl(currentUrl) ? await fetchYoutubeOembed(currentUrl.toString()) : null;
+    const provider = findOembedProvider(currentUrl);
+    const oembed = provider ? await fetchOembed(provider, currentUrl.toString()) : null;
 
     let response: Response | null = null;
 
@@ -130,7 +204,7 @@ export async function GET(request: Request) {
     if (!response || !response.ok) {
       // Ohne HTML trotzdem die oEmbed-Daten verwenden, statt komplett zu scheitern
       if (oembed) {
-        return NextResponse.json({ title: oembed.title || '', description: oembed.author_name ? `Video von ${oembed.author_name}` : '', image: oembed.thumbnail_url || null });
+        return NextResponse.json({ title: oembed.title || '', description: provider ? provider.fallbackDescription(oembed) : '', image: oembed.thumbnail_url || null });
       }
       throw new Error('Failed to fetch URL');
     }
@@ -138,15 +212,15 @@ export async function GET(request: Request) {
     
     const $ = cheerio.load(html);
     
-    const title = oembed?.title || $('meta[property="og:title"]').attr('content') || $('meta[name="twitter:title"]').attr('content') || $('title').text() || '';
+    const title = cleanText(oembed?.title || $('meta[property="og:title"]').attr('content') || $('meta[name="twitter:title"]').attr('content') || $('title').text() || '');
     const rawDescription =
       $('meta[property="og:description"]').attr('content') ||
       $('meta[name="description"]').attr('content') ||
       $('meta[name="twitter:description"]').attr('content') ||
       '';
     // Mehrfache Leerzeichen/Zeilenumbrüche vereinheitlichen, damit die Beschreibung lesbar bleibt
-    let description = rawDescription.replace(/\s+/g, ' ').trim();
-    if (!description && oembed?.author_name) description = `Video von ${oembed.author_name}`;
+    let description = cleanText(rawDescription.replace(/\s+/g, ' ').trim());
+    if (!description && provider) description = provider.fallbackDescription(oembed || {});
 
     let image = oembed?.thumbnail_url || $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content');
     if (!image) {
