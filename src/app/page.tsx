@@ -426,7 +426,7 @@ export default function Home() {
                 <div className="my-8 px-4">
                   <span className="block text-[10px] text-slate-400 uppercase tracking-wider text-center mb-2">Anzeige</span>
                   <div className="bg-white/50 rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
-                    <AdBanner dataAdSlot="INSERT_YOUR_AD_SLOT_ID_HERE" dataAdFormat="horizontal" />
+                    <AdBanner dataAdSlot="3471514716" dataAdFormat="horizontal" />
                   </div>
                 </div>
               )}
