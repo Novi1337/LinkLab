@@ -318,7 +318,21 @@ export default function Home() {
                 handle=".section-header" 
                 className="flex flex-col gap-4"
               >
-                {section.subSections.map((sub) => renderSection(sub, depth + 1))}
+                {section.subSections.map((sub, index) => (
+                  <div key={sub.id}>
+                    {renderSection(sub, depth + 1)}
+
+                    {/* Werbung nach allen 10 Untersektionen */}
+                    {(index + 1) % 10 === 0 && index !== section.subSections.length - 1 && (
+                      <div className="my-6 pr-4">
+                        <span className="block text-[9px] text-slate-400 uppercase tracking-wider text-center mb-1">Anzeige</span>
+                        <div className="bg-white/30 rounded-xl border border-slate-100 overflow-hidden shadow-sm">
+                          <AdBanner dataAdSlot="3471514716" dataAdFormat="horizontal" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </ReactSortable>
             )}
           </div>
