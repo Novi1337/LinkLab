@@ -1171,70 +1171,75 @@ export default function Home() {
                 }}
                 onDoubleClick={() => renameTab(tab.id, tab.name)}
                 title={t.tabRenameTitle}
-                className={`px-5 py-3 font-bold text-nav whitespace-nowrap transition-all border-b-2 -mb-[1px] rounded-t-xl hover:bg-slate-50 flex items-center gap-2 cursor-pointer ${
+                className={`px-5 pt-2.5 pb-3 font-bold text-nav whitespace-nowrap transition-all border-b-2 -mb-[1px] rounded-t-xl hover:bg-slate-50 flex flex-col items-start gap-1 cursor-pointer ${
                   activeTabId === tab.id 
                     ? "border-primary text-primary" 
                     : "border-transparent text-slate-500 hover:text-brand-dark"
                 }`}
                 style={activeTabId === tab.id && tab.color ? { borderColor: tab.color, color: tab.color } : undefined}
               >
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); setColorPickerOpenId(colorPickerOpenId === `tab-${tab.id}` ? null : `tab-${tab.id}`); }}
-                  title={t.assignColor}
-                  className="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300 hover:scale-125 transition-transform"
-                  style={{ backgroundColor: tab.color || "transparent" }}
-                />
-                {tab.name}
-                {tab.shared_from_label && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full">
-                    {tab.shared_from_label}
-                  </span>
-                )}
-                {incognitoUnlocked && (
+                <div className="flex items-center gap-1 opacity-0 group-hover/tab:opacity-100 transition-opacity w-full justify-start">
                   <span
                     role="button"
                     tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); toggleTabPrivacy(tab); }}
-                    title={tab.is_private ? t.makePublicTitle : t.makePrivateTitle}
-                    className={`transition-opacity ${tab.is_private ? "opacity-100 text-slate-600 hover:text-brand-dark" : "opacity-0 group-hover/tab:opacity-100 text-slate-300 hover:text-slate-600"}`}
-                  >
-                    {tab.is_private ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  </span>
-                )}
-                {!tab.is_private && (
+                    onClick={(e) => { e.stopPropagation(); setColorPickerOpenId(colorPickerOpenId === `tab-${tab.id}` ? null : `tab-${tab.id}`); }}
+                    title={t.assignColor}
+                    className="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300 hover:scale-125 transition-transform"
+                    style={{ backgroundColor: tab.color || "transparent" }}
+                  />
+                  {incognitoUnlocked && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); toggleTabPrivacy(tab); }}
+                      title={tab.is_private ? t.makePublicTitle : t.makePrivateTitle}
+                      className={`transition-opacity ${tab.is_private ? "opacity-100 text-slate-600 hover:text-brand-dark" : "opacity-0 group-hover/tab:opacity-100 text-slate-300 hover:text-slate-600"}`}
+                    >
+                      {tab.is_private ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </span>
+                  )}
+                  {!tab.is_private && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); shareResource("tab", tab.id, `Reiter ${tab.name}`); }}
+                      title="Reiter teilen"
+                      className="w-3.5 h-3.5 text-slate-300 hover:text-primary-hover"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                    </span>
+                  )}
                   <span
                     role="button"
                     tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); shareResource("tab", tab.id, `Reiter ${tab.name}`); }}
-                    title="Reiter teilen"
-                    className="w-3.5 h-3.5 transition-opacity opacity-0 group-hover/tab:opacity-100 text-slate-300 hover:text-primary-hover"
+                    onClick={(e) => { e.stopPropagation(); renameTab(tab.id, tab.name); }}
+                    title={t.tabRenameTitle}
+                    className="w-3.5 h-3.5 text-slate-300 hover:text-primary-hover"
                   >
-                    <Share2 className="w-3.5 h-3.5" />
+                    <Edit2 className="w-3.5 h-3.5" />
                   </span>
-                )}
-                <Edit2 
-                  onClick={(e) => { e.stopPropagation(); renameTab(tab.id, tab.name); }} 
-                  className="w-3.5 h-3.5 transition-opacity opacity-0 group-hover/tab:opacity-100 hover:text-primary-hover"
-                />
+                  {tabs.length > 1 && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); deleteTab(tab.id); }}
+                      title={t.tabDeleteTitle}
+                      className="w-3.5 h-3.5 text-slate-300 hover:text-danger"
+                    >
+                      ✕
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 w-full min-w-0">
+                  <span className="truncate min-w-0">{tab.name}</span>
+                  {tab.shared_from_label && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0">
+                      {tab.shared_from_label}
+                    </span>
+                  )}
+                </div>
               </button>
               {colorPickerOpenId === `tab-${tab.id}` && renderColorPicker(tab.color, (color) => updateTabColor(tab.id, color))}
-              
-              {/* Tab Delete Icon */}
-              {tabs.length > 1 && (
-                <button 
-                  onClick={() => deleteTab(tab.id)}
-                  className={`absolute right-1 top-2 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold opacity-0 group-hover/tab:opacity-100 transition-all ${
-                    activeTabId === tab.id 
-                      ? "text-primary hover:bg-danger hover:text-white" 
-                      : "text-slate-300 hover:bg-danger hover:text-white"
-                  }`}
-                  title={t.tabDeleteTitle}
-                >
-                  ✕
-                </button>
-              )}
             </div>
           ))}
           <button 
