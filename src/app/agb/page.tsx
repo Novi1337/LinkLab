@@ -49,7 +49,7 @@ export default function AGB() {
           <li>The contract is concluded when we accept the order by activating Premium features and/or sending a confirmation email.</li>
         </ol>
         <p className="mb-4">
-          The contract language is German. We do not permanently store the contract text;
+          The contract language is English. We do not permanently store the contract text;
           order details are provided by Stripe via email receipt.
         </p>
 
