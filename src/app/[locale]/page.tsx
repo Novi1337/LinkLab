@@ -714,7 +714,9 @@ export default function Home() {
     const url = newLinkInputs[sectionId]?.trim();
     if (!url) return;
 
-    const fullUrl = /^https?:\/\//i.test(url) ? url : `http://${url}`;
+    // https als Standard-Protokoll: praktisch jede Seite unterstützt heute TLS,
+    // und http-Links würden von Browsern zunehmend blockiert/abgewertet.
+    const fullUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
     let domain = fullUrl;
     try { domain = new URL(fullUrl).hostname.replace(/^www\./, ""); } catch {}
     const initial = domain.charAt(0).toUpperCase();
@@ -1201,15 +1203,17 @@ export default function Home() {
                     {tab.is_private ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </span>
                 )}
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); shareResource("tab", tab.id, `Reiter ${tab.name}`); }}
-                  title="Reiter teilen"
-                  className="w-3.5 h-3.5 transition-opacity opacity-0 group-hover/tab:opacity-100 text-slate-300 hover:text-primary-hover"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                </span>
+                {!tab.is_private && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); shareResource("tab", tab.id, `Reiter ${tab.name}`); }}
+                    title="Reiter teilen"
+                    className="w-3.5 h-3.5 transition-opacity opacity-0 group-hover/tab:opacity-100 text-slate-300 hover:text-primary-hover"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                  </span>
+                )}
                 <Edit2 
                   onClick={(e) => { e.stopPropagation(); renameTab(tab.id, tab.name); }} 
                   className="w-3.5 h-3.5 transition-opacity opacity-0 group-hover/tab:opacity-100 hover:text-primary-hover"

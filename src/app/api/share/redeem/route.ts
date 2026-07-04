@@ -12,6 +12,7 @@ type ShareTokenRow = {
   source_tab_id: string | null;
   source_section_id: string | null;
   revoked: boolean;
+  expires_at: string | null;
 };
 
 type TabRow = {
@@ -114,6 +115,10 @@ async function cloneSectionsAndLinks(params: {
   const sourceToTargetSectionId = new Map<string, string>();
 
   const cloneSectionRecursive = async (sourceSection: SectionRow, newParentId: string | null) => {
+    // Zyklus-Schutz: bereits kopierte Sektionen nie erneut besuchen, selbst wenn
+    // die parent_id-Kette in der Quelle (durch manipulierte Daten) einen Kreis bildet.
+    if (sourceToTargetSectionId.has(sourceSection.id)) return;
+
     const { data: insertedSection, error: insertSectionError } = await admin
       .from("sections")
       .insert({
@@ -326,7 +331,7 @@ export async function POST(request: Request) {
 
   const { data: shareToken, error: tokenError } = await admin
     .from("share_tokens")
-    .select("token, owner_user_id, resource_type, source_tab_id, source_section_id, revoked")
+    .select("token, owner_user_id, resource_type, source_tab_id, source_section_id, revoked, expires_at")
     .eq("token", token)
     .maybeSingle();
 
@@ -336,7 +341,11 @@ export async function POST(request: Request) {
     console.error("Share-Token konnte nicht geladen werden:", tokenError);
     return NextResponse.json({ error: "Share-Link konnte nicht geprüft werden" }, { status: 500 });
   }
-  if (!shareTokenRow || shareTokenRow.revoked) {
+  if (
+    !shareTokenRow ||
+    shareTokenRow.revoked ||
+    (shareTokenRow.expires_at && new Date(shareTokenRow.expires_at) < new Date())
+  ) {
     return NextResponse.json({ error: "Share-Link ist ungültig oder abgelaufen" }, { status: 404 });
   }
 
@@ -348,15 +357,19 @@ export async function POST(request: Request) {
   const ownerEmail = ownerUser.user?.email?.trim() || null;
   const sharedFromLabel = ownerEmail ? `Geteilt von ${ownerEmail}` : "Geteilt";
 
-  const { data: existingRedemption } = await admin
+  // Einlösung ZUERST atomar registrieren (Primary Key = token + Empfänger):
+  // Parallele Requests desselben Nutzers können so nicht doppelt klonen -
+  // der zweite Insert schlägt mit Unique-Violation (23505) fehl.
+  const { error: redemptionInsertError } = await admin
     .from("share_redemptions")
-    .select("token")
-    .eq("token", token)
-    .eq("recipient_user_id", user.id)
-    .maybeSingle();
+    .insert({ token, recipient_user_id: user.id });
 
-  if (existingRedemption) {
-    return NextResponse.json({ alreadyRedeemed: true });
+  if (redemptionInsertError) {
+    if (redemptionInsertError.code === "23505") {
+      return NextResponse.json({ alreadyRedeemed: true });
+    }
+    console.error("Share-Redemption konnte nicht gespeichert werden:", redemptionInsertError);
+    return NextResponse.json({ error: "Share-Link konnte nicht eingelöst werden" }, { status: 500 });
   }
 
   try {
@@ -388,17 +401,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unbekannter Share-Typ" }, { status: 400 });
     }
 
-    const { error: redemptionInsertError } = await admin
-      .from("share_redemptions")
-      .insert({ token, recipient_user_id: user.id });
-
-    if (redemptionInsertError) {
-      console.error("Share-Redemption konnte nicht gespeichert werden:", redemptionInsertError);
-    }
-
     return NextResponse.json({ ok: true, targetTabId });
   } catch (error) {
     console.error("Share-Link konnte nicht eingelöst werden:", error);
+    // Klonen fehlgeschlagen -> Einlösung zurücknehmen, damit ein erneuter Versuch möglich ist
+    await admin
+      .from("share_redemptions")
+      .delete()
+      .eq("token", token)
+      .eq("recipient_user_id", user.id);
     return NextResponse.json({ error: "Geteilter Inhalt konnte nicht übernommen werden" }, { status: 500 });
   }
 }
