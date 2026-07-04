@@ -87,14 +87,17 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
   const loadNickname = useCallback(async () => {
     try {
       const res = await fetch("/api/account/nickname", { headers: await authHeader() });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "load_failed");
       setNickname(data?.nickname || "");
       setNicknameMessage(null);
-    } catch {
+    } catch (err) {
       setNicknameMessage({
         type: "error",
-        text: isEn ? "Nickname could not be loaded." : "Nickname konnte nicht geladen werden.",
+        text:
+          err instanceof Error && err.message && err.message !== "load_failed"
+            ? err.message
+            : (isEn ? "Nickname could not be loaded." : "Nickname konnte nicht geladen werden."),
       });
     } finally {
       setNicknameLoading(false);
