@@ -7,12 +7,24 @@ create table if not exists public.profiles (
   stripe_subscription_id text,
   premium_plan text check (premium_plan in ('premium', 'premium_plus', 'lifetime')),
   share_nickname text,
+  share_handle text unique,
+  share_handle_changed_at timestamptz,
   premium_since timestamptz,
   created_at timestamptz not null default now()
 );
 
 alter table public.profiles
   add column if not exists share_nickname text;
+
+alter table public.profiles
+  add column if not exists share_handle text;
+
+alter table public.profiles
+  add column if not exists share_handle_changed_at timestamptz;
+
+create unique index if not exists profiles_share_handle_key
+  on public.profiles (share_handle)
+  where share_handle is not null;
 
 alter table public.profiles enable row level security;
 

@@ -47,6 +47,29 @@ export async function POST(request: Request) {
 
   const admin = getSupabaseAdmin();
 
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("premium_plan, referral_premium_until, share_handle")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const referralPremiumActive =
+    !!profile?.referral_premium_until && new Date(profile.referral_premium_until) > new Date();
+  const isPremiumSharer = !!profile?.premium_plan || referralPremiumActive || user.app_metadata?.role === "admin";
+  if (!isPremiumSharer) {
+    return NextResponse.json(
+      { error: "Teilen ist nur mit Premium verfügbar." },
+      { status: 403 }
+    );
+  }
+
+  if (!profile?.share_handle) {
+    return NextResponse.json(
+      { error: "Bitte zuerst in den Kontoeinstellungen einen Share-Handle festlegen." },
+      { status: 400 }
+    );
+  }
+
   // Rate-Limit: verhindert, dass ein einzelner Account die Token-Tabelle flutet.
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { count: recentCount } = await admin

@@ -35,6 +35,8 @@ type Section = {
   tab_id: string | null;
   color: string | null;
   shared_from_label?: string | null;
+  shared_from_email?: string | null;
+  shared_from_handle?: string | null;
   links: Link[];
   subSections: Section[];
 };
@@ -45,6 +47,8 @@ type Tab = {
   color?: string | null;
   is_private?: boolean;
   shared_from_label?: string | null;
+  shared_from_email?: string | null;
+  shared_from_handle?: string | null;
 };
 
 // Kuratierte Akzentfarben, mit denen Nutzer einzelne Tabs/Sektionen markieren können,
@@ -166,6 +170,12 @@ export default function Home() {
     emptySubtitle: isEn
       ? 'Click "+ Insert section" in the top right to start saving links in this tab.'
       : 'Klicke oben rechts auf "+ Abschnitt einfügen", um mit dem Speichern deiner Links in diesem Reiter zu beginnen.',
+    sharePremiumOnly: isEn ? "Sharing is available with Premium only." : "Teilen ist nur mit Premium verfügbar.",
+    shareNeedHandle: isEn
+      ? "Please set a share handle in account settings first."
+      : "Bitte lege zuerst in den Kontoeinstellungen einen Share-Handle fest.",
+    showSenderEmail: isEn ? "Show sender email" : "Absender-E-Mail anzeigen",
+    senderEmailPrefix: isEn ? "Shared by" : "Geteilt von",
   };
 
   const [isLoginMode, setIsLoginMode] = useState(true);
@@ -430,6 +440,9 @@ export default function Home() {
         parent_id: sec.parent_id,
         tab_id: sec.tab_id,
         color: sec.color || null,
+        shared_from_label: sec.shared_from_label || null,
+        shared_from_email: sec.shared_from_email || null,
+        shared_from_handle: sec.shared_from_handle || null,
         subSections: [],
         links: linksData
           ? linksData
@@ -788,7 +801,18 @@ export default function Home() {
     });
   };
 
+  const revealSharedSender = (email?: string | null) => {
+    if (!email) return;
+    alert(`${t.senderEmailPrefix}: ${email}`);
+  };
+
   const shareResource = async (type: "tab" | "section", id: string, label: string) => {
+    if (!isPremium) {
+      alert(t.sharePremiumOnly);
+      setUpgradeModalOpen(true);
+      return;
+    }
+
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
     if (!accessToken) {
@@ -805,6 +829,11 @@ export default function Home() {
 
       const data = await res.json();
       if (!res.ok || !data.url) {
+        if (data?.error?.includes("Share-Handle")) {
+          alert(t.shareNeedHandle);
+          setAccountModalOpen(true);
+          return;
+        }
         throw new Error(data?.error || "Share-Link konnte nicht erstellt werden.");
       }
 
@@ -905,9 +934,17 @@ export default function Home() {
             <h3 className={`${depth > 0 ? "text-base font-semibold text-brand-dark" : "text-lg font-semibold text-brand-dark"} m-0 flex items-center gap-2 group/heading cursor-pointer`} onClick={() => renameSection(section.id, section.name)} title={t.clickToEdit}>
               {section.name}
               {section.shared_from_label && (
-                <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    revealSharedSender(section.shared_from_email);
+                  }}
+                  title={section.shared_from_email ? t.showSenderEmail : section.shared_from_label}
+                  className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full"
+                >
                   {section.shared_from_label}
-                </span>
+                </button>
               )}
               <Edit2 className="w-4 h-4 text-slate-300 opacity-0 group-hover/heading:opacity-100 transition-opacity" />
             </h3>
@@ -916,13 +953,15 @@ export default function Home() {
             <button onClick={() => setActiveLinkForm(activeLinkForm === section.id ? null : section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
               {t.addLink}
             </button>
-            <button
-              onClick={() => shareResource("section", section.id, `Abschnitt ${section.name}`)}
-              className="text-sm font-medium text-primary hover:text-primary-hover inline-flex items-center gap-1"
-              title="Abschnitt teilen"
-            >
-              <Share2 className="w-3.5 h-3.5" /> Teilen
-            </button>
+            {isPremium && (
+              <button
+                onClick={() => shareResource("section", section.id, `Abschnitt ${section.name}`)}
+                className="text-sm font-medium text-primary hover:text-primary-hover inline-flex items-center gap-1"
+                title="Abschnitt teilen"
+              >
+                <Share2 className="w-3.5 h-3.5" /> Teilen
+              </button>
+            )}
             {depth === 0 && (
               <button onClick={() => addSection(section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
                 {t.addSubsection}
@@ -1210,7 +1249,7 @@ export default function Home() {
                       {tab.is_private ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </span>
                   )}
-                  {!tab.is_private && (
+                  {!tab.is_private && isPremium && (
                     <span
                       role="button"
                       tabIndex={0}
@@ -1245,7 +1284,16 @@ export default function Home() {
                 <div className="flex items-center gap-2 w-full min-w-0">
                   <span className="truncate min-w-0" style={tab.color ? { color: tab.color } : undefined}>{tab.name}</span>
                   {tab.shared_from_label && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0">
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        revealSharedSender(tab.shared_from_email);
+                      }}
+                      title={tab.shared_from_email ? t.showSenderEmail : tab.shared_from_label}
+                      className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0"
+                    >
                       {tab.shared_from_label}
                     </span>
                   )}

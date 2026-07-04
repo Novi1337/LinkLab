@@ -22,6 +22,8 @@ type TabRow = {
   color: string | null;
   is_private: boolean;
   shared_from_label?: string | null;
+  shared_from_email?: string | null;
+  shared_from_handle?: string | null;
 };
 
 type SectionRow = {
@@ -32,6 +34,8 @@ type SectionRow = {
   tab_id: string | null;
   color: string | null;
   shared_from_label?: string | null;
+  shared_from_email?: string | null;
+  shared_from_handle?: string | null;
 };
 
 type LinkRow = {
@@ -101,8 +105,20 @@ async function cloneSectionsAndLinks(params: {
   targetTabId: string;
   rootSourceSectionIds: string[];
   sharedFromLabel: string;
+  sharedFromEmail: string | null;
+  sharedFromHandle: string | null;
 }): Promise<void> {
-  const { admin, recipientUserId, sourceSections, sourceLinks, targetTabId, rootSourceSectionIds, sharedFromLabel } = params;
+  const {
+    admin,
+    recipientUserId,
+    sourceSections,
+    sourceLinks,
+    targetTabId,
+    rootSourceSectionIds,
+    sharedFromLabel,
+    sharedFromEmail,
+    sharedFromHandle,
+  } = params;
 
   const byParent = new Map<string | null, SectionRow[]>();
   for (const section of sourceSections) {
@@ -126,6 +142,8 @@ async function cloneSectionsAndLinks(params: {
         name: sourceSection.name,
         color: sourceSection.color,
         shared_from_label: sharedFromLabel,
+        shared_from_email: sharedFromEmail,
+        shared_from_handle: sharedFromHandle,
         parent_id: newParentId,
         tab_id: targetTabId,
       })
@@ -181,8 +199,10 @@ async function redeemSharedTab(params: {
   recipientUserId: string;
   sourceTabId: string;
   sharedFromLabel: string;
+  sharedFromEmail: string | null;
+  sharedFromHandle: string | null;
 }): Promise<string> {
-  const { admin, ownerUserId, recipientUserId, sourceTabId, sharedFromLabel } = params;
+  const { admin, ownerUserId, recipientUserId, sourceTabId, sharedFromLabel, sharedFromEmail, sharedFromHandle } = params;
 
   const { data: sourceTab } = await admin
     .from("tabs")
@@ -232,6 +252,8 @@ async function redeemSharedTab(params: {
       name: `${sourceTabRow.name} (geteilt)`,
       color: sourceTabRow.color,
       shared_from_label: sharedFromLabel,
+      shared_from_email: sharedFromEmail,
+      shared_from_handle: sharedFromHandle,
       is_private: false,
     })
     .select("id")
@@ -250,6 +272,8 @@ async function redeemSharedTab(params: {
     targetTabId: targetTab.id,
     rootSourceSectionIds: rootIds,
     sharedFromLabel,
+    sharedFromEmail,
+    sharedFromHandle,
   });
 
   return targetTab.id;
@@ -261,8 +285,10 @@ async function redeemSharedSection(params: {
   recipientUserId: string;
   sourceSectionId: string;
   sharedFromLabel: string;
+  sharedFromEmail: string | null;
+  sharedFromHandle: string | null;
 }): Promise<string> {
-  const { admin, ownerUserId, recipientUserId, sourceSectionId, sharedFromLabel } = params;
+  const { admin, ownerUserId, recipientUserId, sourceSectionId, sharedFromLabel, sharedFromEmail, sharedFromHandle } = params;
 
   const { data: allSections, error: allSectionsError } = await admin
     .from("sections")
@@ -304,6 +330,8 @@ async function redeemSharedSection(params: {
     targetTabId,
     rootSourceSectionIds: [sourceSectionId],
     sharedFromLabel,
+    sharedFromEmail,
+    sharedFromHandle,
   });
 
   return targetTabId;
@@ -357,12 +385,15 @@ export async function POST(request: Request) {
   const ownerEmail = ownerUser.user?.email?.trim() || null;
   const { data: ownerProfile } = await admin
     .from("profiles")
-    .select("share_nickname")
+    .select("share_nickname, share_handle")
     .eq("id", shareTokenRow.owner_user_id)
     .maybeSingle();
+  const ownerHandle = ownerProfile?.share_handle?.trim() || null;
   const ownerNickname = ownerProfile?.share_nickname?.trim() || null;
-  const sharedBy = ownerNickname || ownerEmail;
-  const sharedFromLabel = sharedBy ? `Geteilt von ${sharedBy}` : "Geteilt";
+  const sharedBy = ownerNickname || ownerHandle || ownerEmail;
+  const sharedFromLabel = sharedBy
+    ? `Geteilt von ${sharedBy}${ownerHandle && ownerHandle !== sharedBy ? ` (@${ownerHandle})` : ""}`
+    : "Geteilt";
 
   // Einlösung ZUERST atomar registrieren (Primary Key = token + Empfänger):
   // Parallele Requests desselben Nutzers können so nicht doppelt klonen -
@@ -392,6 +423,8 @@ export async function POST(request: Request) {
         recipientUserId: user.id,
         sourceTabId: shareTokenRow.source_tab_id,
         sharedFromLabel,
+        sharedFromEmail: ownerEmail,
+        sharedFromHandle: ownerHandle,
       });
     } else if (shareTokenRow.resource_type === "section") {
       if (!shareTokenRow.source_section_id) {
@@ -403,6 +436,8 @@ export async function POST(request: Request) {
         recipientUserId: user.id,
         sourceSectionId: shareTokenRow.source_section_id,
         sharedFromLabel,
+        sharedFromEmail: ownerEmail,
+        sharedFromHandle: ownerHandle,
       });
     } else {
       return NextResponse.json({ error: "Unbekannter Share-Typ" }, { status: 400 });

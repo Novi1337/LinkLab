@@ -28,6 +28,8 @@ const PLAN_LABELS: Record<string, string> = {
 };
 
 const MAX_NICKNAME_LENGTH = 32;
+const MIN_HANDLE_LENGTH = 3;
+const MAX_HANDLE_LENGTH = 24;
 
 function formatDate(iso: string, locale: "de" | "en"): string {
   return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "de-DE", { day: "2-digit", month: "long", year: "numeric" });
@@ -54,6 +56,10 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
 
   // Nickname für Share-Label (z. B. "Geteilt von Max" statt voller E-Mail)
   const [nickname, setNickname] = useState("");
+  const [handle, setHandle] = useState("");
+  const [shareEmail, setShareEmail] = useState<string | null>(null);
+  const [canChangeHandleAt, setCanChangeHandleAt] = useState<string | null>(null);
+  const [handleCooldownDays, setHandleCooldownDays] = useState(30);
   const [nicknameLoading, setNicknameLoading] = useState(true);
   const [nicknameBusy, setNicknameBusy] = useState(false);
   const [nicknameMessage, setNicknameMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -90,6 +96,10 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "load_failed");
       setNickname(data?.nickname || "");
+      setHandle(data?.handle || "");
+      setShareEmail(data?.email || null);
+      setCanChangeHandleAt(data?.canChangeHandleAt || null);
+      setHandleCooldownDays(data?.handleCooldownDays || 30);
       setNicknameMessage(null);
     } catch (err) {
       setNicknameMessage({
@@ -186,6 +196,7 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
     setNicknameMessage(null);
 
     const trimmed = nickname.replace(/\s+/g, " ").trim();
+    const normalizedHandle = handle.toLowerCase().trim().replace(/^@+/, "");
     if (trimmed.length > MAX_NICKNAME_LENGTH) {
       setNicknameMessage({
         type: "error",
@@ -195,17 +206,30 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
       });
       return;
     }
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalizedHandle) || normalizedHandle.length < MIN_HANDLE_LENGTH || normalizedHandle.length > MAX_HANDLE_LENGTH) {
+      setNicknameMessage({
+        type: "error",
+        text: isEn
+          ? `Handle must be ${MIN_HANDLE_LENGTH}-${MAX_HANDLE_LENGTH} chars and use only a-z, 0-9, and hyphens.`
+          : `Handle muss ${MIN_HANDLE_LENGTH}-${MAX_HANDLE_LENGTH} Zeichen lang sein und darf nur a-z, 0-9 und Bindestriche enthalten.`,
+      });
+      return;
+    }
 
     setNicknameBusy(true);
     try {
       const res = await fetch("/api/account/nickname", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeader()) },
-        body: JSON.stringify({ nickname: trimmed }),
+        body: JSON.stringify({ nickname: trimmed, handle: normalizedHandle }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "save_failed");
       setNickname(data?.nickname || "");
+      setHandle(data?.handle || normalizedHandle);
+      setShareEmail(data?.email || shareEmail);
+      setCanChangeHandleAt(data?.canChangeHandleAt || null);
+      setHandleCooldownDays(data?.handleCooldownDays || handleCooldownDays);
       setNicknameMessage({
         type: "success",
         text: isEn ? "Nickname saved." : "Nickname gespeichert.",
@@ -279,8 +303,8 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
               <form onSubmit={saveNickname} className="flex flex-col gap-3">
                 <p className="text-sm text-slate-500 m-0">
                   {isEn
-                    ? "This name is shown in shared tabs and sections (instead of your email)."
-                    : "Dieser Name wird in geteilten Reitern und Abschnitten angezeigt (statt deiner E-Mail)."}
+                    ? "Shared content shows display name and handle. Recipients can also reveal your email for verification."
+                    : "Geteilte Inhalte zeigen Anzeigename und Handle. Empfänger können zusätzlich deine E-Mail zur Verifikation einsehen."}
                 </p>
                 <input
                   type="text"
@@ -290,6 +314,35 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
                   maxLength={MAX_NICKNAME_LENGTH}
                   className="p-3 rounded-xl border border-slate-200 outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all bg-slate-50/50 focus:bg-white text-brand-dark text-sm"
                 />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs uppercase tracking-wide font-bold text-slate-500">
+                    {isEn ? "Unique handle" : "Eindeutiger Handle"}
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">@</span>
+                    <input
+                      type="text"
+                      placeholder={isEn ? "max-mueller" : "max-mueller"}
+                      value={handle}
+                      onChange={(e) => setHandle(e.target.value)}
+                      maxLength={MAX_HANDLE_LENGTH + 1}
+                      className="pl-7 p-3 rounded-xl border border-slate-200 outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all bg-slate-50/50 focus:bg-white text-brand-dark text-sm w-full"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400 m-0">
+                    {isEn
+                      ? `Handle changes are only possible every ${handleCooldownDays} days.`
+                      : `Handle-Änderungen sind nur alle ${handleCooldownDays} Tage möglich.`}
+                    {canChangeHandleAt && new Date(canChangeHandleAt) > new Date()
+                      ? ` ${isEn ? "Next possible change:" : "Nächste Änderung:"} ${new Date(canChangeHandleAt).toLocaleDateString(locale === "en" ? "en-US" : "de-DE")}`
+                      : ""}
+                  </p>
+                </div>
+                {shareEmail && (
+                  <p className="text-xs text-slate-500 m-0">
+                    {isEn ? "Visible verification email:" : "Sichtbare Verifikations-E-Mail:"} <strong>{shareEmail}</strong>
+                  </p>
+                )}
                 <p className="text-xs text-slate-400 m-0">
                   {nickname.trim().length}/{MAX_NICKNAME_LENGTH}
                 </p>

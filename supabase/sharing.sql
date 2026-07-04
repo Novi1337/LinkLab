@@ -36,6 +36,32 @@ alter table public.sections
 alter table public.profiles
   add column if not exists share_nickname text;
 
+-- Eindeutiger, vertrauenswürdiger Share-Handle (z. B. @basti-a1b2)
+alter table public.profiles
+  add column if not exists share_handle text;
+
+-- 30-Tage-Cooldown für Handle-Änderungen
+alter table public.profiles
+  add column if not exists share_handle_changed_at timestamptz;
+
+create unique index if not exists profiles_share_handle_key
+  on public.profiles (share_handle)
+  where share_handle is not null;
+
+-- Zusätzlich zur Kurzanzeige wird die verifizierbare Absender-Mail gespeichert,
+-- damit Empfänger beim Nickname die echte E-Mail einsehen können.
+alter table public.tabs
+  add column if not exists shared_from_email text;
+
+alter table public.tabs
+  add column if not exists shared_from_handle text;
+
+alter table public.sections
+  add column if not exists shared_from_email text;
+
+alter table public.sections
+  add column if not exists shared_from_handle text;
+
 -- Share-Tabellen sind nur über Server-Endpunkte erreichbar.
 -- Service-Role-Key umgeht RLS; für Client-Zugriffe werden keine Policies vergeben.
 alter table public.share_tokens enable row level security;
