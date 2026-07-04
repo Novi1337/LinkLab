@@ -7,22 +7,22 @@ import { getStripe, getSupabaseAdmin, getUserFromRequest, isPremiumPlan, PLAN_PR
 export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   let plan: unknown;
   try {
     ({ plan } = await request.json());
   } catch {
-    return NextResponse.json({ error: "Ungültiger Request-Body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
   if (!isPremiumPlan(plan)) {
-    return NextResponse.json({ error: "Unbekannter Plan" }, { status: 400 });
+    return NextResponse.json({ error: "Unknown plan" }, { status: 400 });
   }
 
   const priceId = PLAN_PRICE_ENV[plan];
   if (!priceId) {
-    return NextResponse.json({ error: `Price-ID für Plan "${plan}" ist nicht konfiguriert` }, { status: 500 });
+    return NextResponse.json({ error: `Price ID for plan "${plan}" is not configured` }, { status: 500 });
   }
 
   try {
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
     // Lifetime-Kunden brauchen kein weiteres Abo/keinen weiteren Kauf
     if (profile?.premium_plan === "lifetime") {
-      return NextResponse.json({ error: "Du hast bereits lebenslangen Premium-Zugang" }, { status: 400 });
+      return NextResponse.json({ error: "You already have lifetime Premium access" }, { status: 400 });
     }
 
     // Abo-Wechsel (premium <-> premium_plus) läuft über das Stripe-Kundenportal,
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     // per Checkout gekauft werden - der Webhook beendet dann das alte Abo.
     if (plan !== "lifetime" && profile?.premium_plan && profile?.stripe_subscription_id) {
       return NextResponse.json(
-        { error: "Du hast bereits ein aktives Abo. Deinen Plan kannst du im Kundenportal (Konto → Abo verwalten) wechseln." },
+        { error: "You already have an active subscription. You can change plans in the customer portal (Account -> Manage Subscription)." },
         { status: 400 }
       );
     }
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
-    console.error("Stripe Checkout Fehler:", err);
-    return NextResponse.json({ error: "Checkout konnte nicht gestartet werden" }, { status: 500 });
+    console.error("Stripe checkout error:", err);
+    return NextResponse.json({ error: "Checkout could not be started" }, { status: 500 });
   }
 }

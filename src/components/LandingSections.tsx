@@ -8,79 +8,79 @@ import {
   Sparkles,
 } from "lucide-react";
 
-// Servergerenderte (prerenderte) Landing-Inhalte für ausgeloggte Besucher
-// und Suchmaschinen-Crawler: Features + FAQ inkl. Schema.org-FAQPage.
+// Server-rendered landing content for signed-out visitors and search crawlers:
+// features + FAQ including Schema.org FAQPage.
 
 const FEATURES = [
   {
     icon: FolderOpen,
-    title: "Reiter & Ordner",
-    text: "Organisiere deine Links in Reitern und farbigen Ordnern – sortiert per Drag & Drop, genau wie du denkst.",
+    title: "Tabs & Folders",
+    text: "Organize your links in tabs and color-coded folders, arranged with intuitive drag and drop.",
   },
   {
     icon: ImageIcon,
-    title: "Automatische Vorschauen",
-    text: "Titel, Beschreibung und Vorschaubild werden beim Speichern automatisch geladen – kein manuelles Ausfüllen.",
+    title: "Automatic Previews",
+    text: "Titles, descriptions, and preview images are fetched automatically when you save a link — no manual entry required.",
   },
   {
     icon: MousePointerClick,
     title: "Save-Button & Bookmarklet",
-    text: "Speichere Links von jeder Website mit einem Klick – ganz ohne Kopieren und Einfügen.",
+    text: "Save links from any website with a single click, without copying and pasting URLs.",
     href: "/save-button",
-    linkLabel: "Mehr zum Save-Button →",
+    linkLabel: "Learn more about the Save Button →",
   },
   {
     icon: Cloud,
-    title: "Überall verfügbar",
-    text: "Deine Bibliothek liegt sicher in der Cloud und ist auf PC, Tablet und Smartphone immer synchron.",
+    title: "Available Everywhere",
+    text: "Your library is securely stored in the cloud and stays in sync across desktop, tablet, and mobile.",
   },
   {
     icon: EyeOff,
-    title: "Inkognito-Reiter",
-    text: "Private Reiter mit Passwortschutz: Sensible Links bleiben ausschließlich für dich sichtbar.",
+    title: "Incognito Tabs",
+    text: "Password-protected private tabs keep sensitive links visible only to you.",
   },
   {
     icon: Sparkles,
-    title: "Kostenlos starten",
-    text: "Alle Grundfunktionen sind dauerhaft kostenlos – registriere dich in wenigen Sekunden und leg los.",
+    title: "Start for Free",
+    text: "All core features are permanently free — create your account in seconds and get started right away.",
   },
 ];
 
 const FAQS = [
   {
-    question: "Was ist LinkLib?",
+    question: "What is LinkLib?",
     answer:
-      "LinkLib ist ein kostenloser Online-Bookmark-Manager. Du speicherst Links, Videos und Artikel in einer persönlichen Link-Bibliothek und organisierst sie übersichtlich in Reitern und Ordnern – sicher in der Cloud.",
+      "LinkLib is a free online bookmark manager. Save links, videos, and articles in your personal library and keep everything organized in tabs and folders, securely stored in the cloud.",
   },
   {
-    question: "Ist LinkLib wirklich kostenlos?",
+    question: "Is LinkLib really free?",
     answer:
-      "Ja. Alle Grundfunktionen sind dauerhaft kostenlos und werden über dezente Werbung finanziert. Mit LinkLib Premium nutzt du die App werbefrei und erhältst Zusatzfunktionen wie passwortgeschützte Inkognito-Reiter.",
+      "Yes. All core features are permanently free and supported by unobtrusive ads. With LinkLib Premium, you can use the app ad-free and unlock advanced features like password-protected Incognito tabs.",
   },
   {
-    question: "Auf welchen Geräten funktioniert LinkLib?",
+    question: "Which devices support LinkLib?",
     answer:
-      "LinkLib läuft direkt im Browser – ganz ohne Installation. Deine Link-Bibliothek synchronisiert sich automatisch zwischen PC, Laptop, Tablet und Smartphone.",
+      "LinkLib runs directly in your browser with no installation required. Your link library syncs automatically across desktop, laptop, tablet, and smartphone.",
   },
   {
-    question: "Wie speichere ich einen Link?",
+    question: "How do I save a link?",
     answer:
-      "Füge einfach die URL ein – Titel, Beschreibung und Vorschaubild werden automatisch geladen. Noch schneller geht es mit dem Save-Button oder Bookmarklet, mit dem du Links direkt von jeder Website mit einem Klick speicherst.",
+      "Just paste the URL — title, description, and preview image are loaded automatically. For an even faster workflow, use the Save Button or bookmarklet to save links directly from any website in one click.",
   },
   {
-    question: "Sind meine Daten sicher?",
+    question: "Is my data secure?",
     answer:
-      "Ja. Deine Daten werden verschlüsselt übertragen und DSGVO-konform verarbeitet. Private Inkognito-Reiter lassen sich zusätzlich mit einem Passwort schützen. Details findest du in unserer Datenschutzerklärung.",
+      "Yes. Your data is transmitted securely and processed in compliance with GDPR. Private Incognito tabs can also be protected with a password. You can find full details in our Privacy Policy.",
   },
   {
-    question: "Brauche ich eine Kreditkarte?",
+    question: "Do I need a credit card?",
     answer:
-      "Nein. Für die Registrierung genügt eine E-Mail-Adresse oder ein Google- bzw. GitHub-Konto. Zahlungsdaten sind nur für das optionale Premium-Upgrade nötig.",
+      "No. You can register with an email address or a Google/GitHub account. Payment details are only required for optional Premium upgrades.",
   },
 ];
 
-// Schema.org FAQPage für Google Rich Results – aus denselben Daten generiert,
-// damit sichtbarer Inhalt und strukturierte Daten garantiert übereinstimmen.
+// Schema.org FAQPage for Google Rich Results, generated from the same data
+// to ensure visible content and structured data always match.
 const faqJsonLd = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -105,11 +105,11 @@ export function LandingSections() {
       {/* FEATURES */}
       <section id="features" className="max-w-shell mx-auto px-5 py-20">
         <h2 className="text-3xl font-extrabold text-center mb-3">
-          Alles, was deine Links brauchen
+          Everything your links need
         </h2>
         <p className="text-slate-500 text-center font-medium mb-12 max-w-2xl mx-auto">
-          LinkLib ist die übersichtliche Alternative zu unsortierten Browser-Lesezeichen –
-          gebaut für Menschen, die viele Links sammeln.
+          LinkLib is the structured alternative to cluttered browser bookmarks —
+          built for people who collect lots of links.
         </p>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((feature) => (
@@ -135,9 +135,9 @@ export function LandingSections() {
 
       {/* FAQ */}
       <section id="faq" className="max-w-3xl mx-auto px-5 pb-20">
-        <h2 className="text-3xl font-extrabold text-center mb-3">Häufige Fragen</h2>
+        <h2 className="text-3xl font-extrabold text-center mb-3">Frequently Asked Questions</h2>
         <p className="text-slate-500 text-center font-medium mb-10">
-          Kurz beantwortet – alles Wichtige rund um deine Link-Bibliothek.
+          Quick answers to everything important about your link library.
         </p>
         <div className="flex flex-col gap-3">
           {FAQS.map((faq) => (

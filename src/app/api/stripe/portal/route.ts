@@ -6,7 +6,7 @@ import { getStripe, getSupabaseAdmin, getUserFromRequest } from "@/lib/stripe";
 export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   try {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (!profile?.stripe_customer_id) {
-      return NextResponse.json({ error: "Kein Stripe-Kundenkonto vorhanden" }, { status: 404 });
+      return NextResponse.json({ error: "No Stripe customer account found" }, { status: 404 });
     }
 
     const origin = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
-    console.error("Stripe Billing-Portal Fehler:", err);
-    return NextResponse.json({ error: "Portal konnte nicht geöffnet werden" }, { status: 500 });
+    console.error("Stripe billing portal error:", err);
+    return NextResponse.json({ error: "Portal could not be opened" }, { status: 500 });
   }
 }

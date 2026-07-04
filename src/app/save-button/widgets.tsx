@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Interaktive Bausteine der Save-Button-Doku-Seite:
- * Code-Snippet mit Kopieren-Button sowie das Bookmarklet.
+ * Interactive building blocks for the Save Button documentation page:
+ * code snippet with copy button and bookmarklet.
  */
 
 export function CodeSnippet({ code }: { code: string }) {
@@ -16,7 +16,7 @@ export function CodeSnippet({ code }: { code: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard-API nicht verfügbar – Nutzer kann manuell markieren
+      // Clipboard API unavailable — user can copy manually
     }
   };
 
@@ -30,7 +30,7 @@ export function CodeSnippet({ code }: { code: string }) {
         onClick={copy}
         className="absolute top-3 right-3 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
       >
-        {copied ? "Kopiert ✓" : "Kopieren"}
+        {copied ? "Copied ✓" : "Copy"}
       </button>
     </div>
   );
@@ -39,8 +39,8 @@ export function CodeSnippet({ code }: { code: string }) {
 export function BookmarkletLink() {
   const ref = useRef<HTMLAnchorElement>(null);
 
-  // React blockiert javascript:-URLs in JSX-Attributen, daher wird das
-  // Bookmarklet-Href nach dem Mount direkt am DOM-Element gesetzt.
+  // React blocks javascript: URLs in JSX attributes, so the bookmarklet href
+  // is assigned directly to the DOM element after mount.
   useEffect(() => {
     const origin = window.location.origin;
     const code =
@@ -54,11 +54,11 @@ export function BookmarkletLink() {
     <a
       ref={ref}
       onClick={(e) => e.preventDefault()}
-      title="Ziehe mich in deine Lesezeichenleiste"
+      title="Drag me to your bookmarks bar"
       className="inline-flex items-center gap-2 bg-white border border-slate-200 text-brand-dark px-5 py-3 rounded-xl font-bold shadow-sm hover:shadow-md transition-all cursor-grab select-none"
     >
       <img src="/Favicon.svg" alt="" className="w-5 h-5" />
-      Auf LinkLib speichern
+      Save to LinkLib
     </a>
   );
 }

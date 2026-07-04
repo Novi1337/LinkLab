@@ -18,7 +18,7 @@ type ReferralInfo = {
 };
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" });
 }
 
 // Zeigt den persönlichen Einladungslink samt Status der Empfehlungs-Prämie:
@@ -44,7 +44,7 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
       setError(null);
     } catch (err) {
       const detail = err instanceof Error && err.message ? ` (${err.message})` : "";
-      setError(`Dein Einladungslink konnte nicht geladen werden. Bitte versuche es erneut.${detail}`);
+      setError(`Your referral link could not be loaded. Please try again.${detail}`);
     }
   }, []);
 
@@ -75,7 +75,7 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError("Kopieren fehlgeschlagen - bitte markiere den Link manuell.");
+      setError("Copy failed — please copy the link manually.");
     }
   };
 
@@ -93,16 +93,16 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
           <div>
             <h3 className="text-lg font-bold text-brand-dark m-0 flex items-center gap-2">
-              <Gift className="w-5 h-5 text-primary" /> Freunde einladen
+              <Gift className="w-5 h-5 text-primary" /> Invite Friends
             </h3>
             <p className="text-sm text-slate-500 m-0 mt-1">
-              Werbe 10 Personen und erhalte 1 Jahr Premium gratis.
+              Refer 10 people and receive 1 year of Premium at no cost.
             </p>
           </div>
           <button
             onClick={onClose}
             className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-muted hover:bg-slate-200 transition-colors text-sm"
-            title="Schließen"
+            title="Close"
           >
             ✕
           </button>
@@ -125,21 +125,21 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
                   className="px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-hover transition-colors flex items-center gap-2 shrink-0"
                 >
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? "Kopiert" : "Kopieren"}
+                  {copied ? "Copied" : "Copy"}
                 </button>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-600 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span>
-                    Bisher geworben:{" "}
+                    Referrals so far:{" "}
                     <strong className="text-brand-dark">
                       {info.referralCount} / {info.rewardThreshold}
                     </strong>
                   </span>
                   {!info.rewardGranted && info.referralCount < info.rewardThreshold && (
                     <span className="text-xs text-slate-400">
-                      noch {info.rewardThreshold - info.referralCount} bis zur Prämie
+                      {info.rewardThreshold - info.referralCount} to reward
                     </span>
                   )}
                 </div>
@@ -151,24 +151,24 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
                 </div>
                 {rewardActive && info.premiumUntil ? (
                   <span className="text-emerald-700 font-semibold">
-                    ★ Deine Prämie ist aktiv - Premium bis {formatDate(info.premiumUntil)}.
+                    ★ Your reward is active — Premium until {formatDate(info.premiumUntil)}.
                   </span>
                 ) : info.rewardGranted ? (
-                  <span>Deine Prämie wurde bereits eingelöst.</span>
+                  <span>Your reward has already been redeemed.</span>
                 ) : (
                   <span>
-                    Registrieren sich {info.rewardThreshold} Personen über deinen Link, erhältst du{" "}
-                    <strong className="text-brand-dark">1 Jahr Premium</strong> - werbefrei inkl. Inkognito-Modus.
+                    When {info.rewardThreshold} people sign up using your link, you receive{" "}
+                    <strong className="text-brand-dark">1 year of Premium</strong> — ad-free, including Incognito mode.
                   </span>
                 )}
               </div>
             </>
           )}
 
-          {!info && !error && <p className="text-sm text-slate-500 m-0">Lade Einladungslink …</p>}
+          {!info && !error && <p className="text-sm text-slate-500 m-0">Loading referral link…</p>}
 
           <p className="text-[11px] text-slate-400 m-0 text-center">
-            Gilt nur für neu registrierte Nutzer · Prämie wird einmalig gutgeschrieben
+            Valid for newly registered users only · Reward is granted once
           </p>
         </div>
       </div>

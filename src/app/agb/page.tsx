@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "AGB | LinkLib",
-  description: "Allgemeine Geschäftsbedingungen für die Nutzung von LinkLib und LinkLib Premium.",
+  title: "Terms & Conditions | LinkLib",
+  description: "Terms and conditions for using LinkLib and LinkLib Premium.",
   robots: { index: false, follow: true },
 };
 
@@ -11,134 +11,122 @@ export default function AGB() {
   return (
     <div className="min-h-screen bg-card py-16 px-5">
       <div className="max-w-[800px] mx-auto">
-        <h1 className="text-3xl font-bold text-brand-dark mb-8">Allgemeine Geschäftsbedingungen (AGB)</h1>
+        <h1 className="text-3xl font-bold text-brand-dark mb-8">Terms and Conditions</h1>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">1. Geltungsbereich und Anbieter</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">1. Scope and Provider</h2>
         <p className="mb-4">
-          Diese Allgemeinen Geschäftsbedingungen gelten für die Nutzung der Website
-          getlinklib.com (&quot;LinkLib&quot;) sowie für den Erwerb kostenpflichtiger
-          Premium-Leistungen. Anbieter ist Sebastian Siebert, Josef-Kastl-Straße 4,
-          82377 Penzberg, Deutschland (siehe{" "}
-          <Link href="/impressum" className="text-primary hover:underline">Impressum</Link>).
-          Das Angebot richtet sich an Verbraucher im Sinne des § 13 BGB.
+          These Terms and Conditions apply to the use of the website getlinklib.com (&quot;LinkLib&quot;)
+          and to the purchase of paid Premium services. The provider is Sebastian Siebert,
+          Josef-Kastl-Straße 4, 82377 Penzberg, Germany (see{" "}
+          <Link href="/impressum" className="text-primary hover:underline">Legal Notice</Link>).
+          The service is intended for consumers within the meaning of Section 13 BGB.
         </p>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">2. Leistungsbeschreibung</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">2. Service Description</h2>
         <p className="mb-4">
-          LinkLib ist ein cloudbasierter Dienst zum Speichern, Organisieren und Verwalten von
-          Lesezeichen (Links). Die Basisnutzung ist kostenlos und wird durch Werbung finanziert.
-          Mit &quot;LinkLib Premium&quot; kann der Dienst werbefrei genutzt werden. Premium ist
-          als monatliches Abonnement, jährliches Abonnement oder als Einmalkauf
-          (&quot;Lifetime&quot;) erhältlich.
+          LinkLib is a cloud-based service for saving, organizing, and managing bookmarks (links).
+          Core usage is free and financed through advertising. With &quot;LinkLib Premium&quot;, the service
+          can be used without ads. Premium is available as a monthly subscription, yearly subscription,
+          or one-time purchase (&quot;Lifetime&quot;).
         </p>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">3. Registrierung und Nutzerkonto</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">3. Registration and User Account</h2>
         <p className="mb-4">
-          Die Nutzung von LinkLib erfordert die Erstellung eines Nutzerkontos (per E-Mail und
-          Passwort oder über die Anmeldung mit GitHub bzw. Google). Der Nutzer ist verpflichtet,
-          seine Zugangsdaten geheim zu halten. Es besteht kein Anspruch auf Registrierung. Konten
-          können vom Nutzer jederzeit in der Kontoverwaltung gelöscht werden.
+          Using LinkLib requires a user account (via email/password or sign-in with GitHub or Google).
+          Users are required to keep their access credentials confidential. There is no entitlement to registration.
+          Accounts can be deleted by users at any time in account settings.
         </p>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">4. Vertragsschluss</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">4. Conclusion of Contract</h2>
         <p className="mb-4">
-          Die Darstellung der Premium-Pläne auf der Website stellt kein rechtlich bindendes
-          Angebot dar, sondern eine Aufforderung zur Abgabe einer Bestellung. Der Bestellprozess
-          läuft wie folgt ab:
+          The presentation of Premium plans on the website does not constitute a legally binding offer,
+          but an invitation to place an order. The ordering process is as follows:
         </p>
         <ol className="list-decimal ml-6 mb-4 flex flex-col gap-1">
-          <li>Auswahl des gewünschten Plans (monatlich, jährlich oder Lifetime) im Upgrade-Dialog.</li>
-          <li>Weiterleitung zur gesicherten Bezahlseite unseres Zahlungsdienstleisters Stripe. Dort werden alle Bestelldaten und der Gesamtpreis nochmals angezeigt; Eingabefehler können bis zum Absenden korrigiert werden.</li>
-          <li>Mit Klick auf den zahlungspflichtigen Bestell-Button gibt der Nutzer ein verbindliches Angebot zum Abschluss des Vertrags ab.</li>
-          <li>Der Vertrag kommt zustande, wenn wir die Bestellung durch Freischaltung der Premium-Funktionen und/oder eine Bestätigungs-E-Mail annehmen.</li>
+          <li>Select the desired plan (monthly, yearly, or lifetime) in the upgrade dialog.</li>
+          <li>You are redirected to the secure payment page of our payment provider Stripe. All order details and total price are shown again, and input errors can be corrected before submission.</li>
+          <li>By clicking the payment-confirming order button, you submit a binding offer to conclude the contract.</li>
+          <li>The contract is concluded when we accept the order by activating Premium features and/or sending a confirmation email.</li>
         </ol>
         <p className="mb-4">
-          Vertragssprache ist Deutsch. Der Vertragstext wird von uns nicht dauerhaft gespeichert;
-          die Bestelldaten werden dem Nutzer durch Stripe per E-Mail-Beleg zur Verfügung gestellt.
+          The contract language is German. We do not permanently store the contract text;
+          order details are provided by Stripe via email receipt.
         </p>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">5. Preise und Zahlung</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">5. Prices and Payment</h2>
         <p className="mb-4">
-          Es gelten die zum Zeitpunkt der Bestellung angezeigten Preise. Als Kleinunternehmer im
-          Sinne von § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet und ausgewiesen. Die
-          Zahlungsabwicklung erfolgt über den Zahlungsdienstleister Stripe; verfügbar sind die
-          dort angebotenen Zahlungsarten (z. B. Kreditkarte). Abonnementgebühren werden im Voraus
-          für den jeweiligen Abrechnungszeitraum fällig.
+          The prices displayed at the time of order apply. As a small business under Section 19 (1) UStG,
+          VAT is not charged or shown separately. Payments are processed via Stripe; available payment methods
+          are those offered there (for example credit card). Subscription fees are due in advance for the
+          applicable billing period.
         </p>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">6. Laufzeit und Kündigung von Abonnements</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">6. Subscription Term and Cancellation</h2>
         <p className="mb-4">
-          Monats- und Jahresabonnements verlängern sich automatisch um den jeweiligen
-          Abrechnungszeitraum, sofern sie nicht vor Ablauf gekündigt werden. Die Kündigung ist
-          jederzeit zum Ende des laufenden Abrechnungszeitraums möglich – direkt in der
-          Kontoverwaltung über das Kundenportal von Stripe oder per E-Mail an{" "}
+          Monthly and yearly subscriptions renew automatically for the respective billing period unless canceled
+          before the end of the current term. Cancellation is possible at any time effective at the end of the
+          current billing period — directly in account settings via Stripe’s customer portal or by email to{" "}
           <a href="mailto:admin@getlinklib.com" className="text-primary hover:underline">admin@getlinklib.com</a>.
-          Bereits gezahlte Entgelte für den laufenden Zeitraum werden nicht anteilig erstattet;
-          Premium bleibt bis zum Ende des bezahlten Zeitraums aktiv. Der Lifetime-Plan ist ein
-          Einmalkauf ohne Laufzeit. Das Recht zur außerordentlichen Kündigung aus wichtigem Grund
-          bleibt unberührt.
+          Fees already paid for the current period are not refunded pro rata. Premium remains active until the end
+          of the paid period. The Lifetime plan is a one-time purchase with no recurring term. The right to extraordinary
+          termination for good cause remains unaffected.
         </p>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">7. Widerrufsrecht</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">7. Right of Withdrawal</h2>
         <p className="mb-4">
-          Verbrauchern steht ein gesetzliches Widerrufsrecht zu. Einzelheiten, die Belehrung und
-          das Muster-Widerrufsformular finden Sie in der{" "}
-          <Link href="/widerruf" className="text-primary hover:underline">Widerrufsbelehrung</Link>.
-          Bitte beachten Sie: Verlangen Sie die sofortige Bereitstellung der Premium-Funktionen
-          vor Ablauf der Widerrufsfrist, kann das Widerrufsrecht nach Maßgabe der gesetzlichen
-          Regelungen erlöschen bzw. ist bei Widerruf Wertersatz für die bereits erbrachte
-          Leistung zu zahlen.
+          Consumers have a statutory right of withdrawal. Details, instructions, and the sample withdrawal form
+          are available in the{" "}
+          <Link href="/widerruf" className="text-primary hover:underline">Right of Withdrawal</Link>.
+          Please note: if you request immediate provision of Premium features before the withdrawal period ends,
+          your withdrawal right may expire in accordance with legal requirements, and compensation may be due
+          for services already provided.
         </p>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">8. Pflichten des Nutzers, unzulässige Nutzung</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">8. User Obligations and Prohibited Use</h2>
         <p className="mb-4">
-          Der Nutzer darf den Dienst nicht missbräuchlich verwenden, insbesondere keine Links auf
-          rechtswidrige Inhalte speichern oder verbreiten und keine Handlungen vornehmen, die die
-          Funktionsfähigkeit des Dienstes beeinträchtigen. Bei schwerwiegenden oder wiederholten
-          Verstößen können wir Konten sperren oder löschen.
+          Users may not misuse the service, in particular by saving or distributing links to illegal content,
+          or by performing actions that impair service functionality. In cases of serious or repeated violations,
+          we may suspend or delete accounts.
         </p>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">9. Verfügbarkeit und Änderungen des Dienstes</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">9. Availability and Service Changes</h2>
         <p className="mb-4">
-          Wir bemühen uns um eine möglichst unterbrechungsfreie Verfügbarkeit des Dienstes,
-          schulden jedoch keine bestimmte Verfügbarkeit. Wartungsarbeiten, Weiterentwicklungen
-          oder Störungen können zu vorübergehenden Einschränkungen führen. Wir empfehlen, für
-          wichtige Links zusätzlich eigene Sicherungen (Export/Notizen) vorzuhalten.
+          We strive to provide uninterrupted service availability but do not guarantee any specific uptime.
+          Maintenance, further development, or technical disruptions may cause temporary limitations. We recommend
+          keeping your own backups (exports/notes) for important links.
         </p>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">10. Haftung</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">10. Liability</h2>
         <p className="mb-4">
-          Wir haften unbeschränkt für Vorsatz und grobe Fahrlässigkeit sowie für Schäden aus der
-          Verletzung des Lebens, des Körpers oder der Gesundheit. Bei einfacher Fahrlässigkeit
-          haften wir nur für die Verletzung wesentlicher Vertragspflichten (Kardinalpflichten),
-          begrenzt auf den vertragstypischen, vorhersehbaren Schaden. Die Haftung nach dem
-          Produkthaftungsgesetz bleibt unberührt. Für Inhalte externer, von Nutzern gespeicherter
-          Websites übernehmen wir keine Verantwortung.
+          We are liable without limitation for intent and gross negligence, and for damages resulting from
+          injury to life, body, or health. In cases of simple negligence, we are liable only for breach of
+          essential contractual obligations (cardinal duties), limited to foreseeable, typical contractual damage.
+          Liability under the Product Liability Act remains unaffected. We assume no responsibility for content
+          of external websites saved by users.
         </p>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">11. Streitbeilegung</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">11. Dispute Resolution</h2>
         <p className="mb-4">
-          Die EU-Plattform zur Online-Streitbeilegung (OS-Plattform) wurde zum 20. Juli 2025
-          eingestellt. Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren
-          vor einer Verbraucherschlichtungsstelle im Sinne des § 36 VSBG teilzunehmen.
+          The EU Online Dispute Resolution platform (ODR platform) was discontinued on July 20, 2025.
+          We are neither willing nor obliged to participate in dispute resolution proceedings before
+          a consumer arbitration board pursuant to Section 36 VSBG.
         </p>
 
-        <h2 className="text-xl font-bold mt-6 mb-2">12. Schlussbestimmungen</h2>
+        <h2 className="text-xl font-bold mt-6 mb-2">12. Final Provisions</h2>
         <p className="mb-4">
-          Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des UN-Kaufrechts.
-          Gegenüber Verbrauchern gilt diese Rechtswahl nur, soweit ihnen dadurch nicht der Schutz
-          zwingender Bestimmungen des Rechts ihres gewöhnlichen Aufenthaltsstaats entzogen wird.
-          Sollten einzelne Bestimmungen dieser AGB unwirksam sein, bleibt die Wirksamkeit der
-          übrigen Bestimmungen unberührt.
+          The law of the Federal Republic of Germany applies, excluding the UN Convention on Contracts for
+          the International Sale of Goods (CISG). For consumers, this choice of law applies only to the extent
+          it does not remove protection granted by mandatory provisions of the law of their habitual residence.
+          If individual provisions of these Terms are invalid, the validity of the remaining provisions remains unaffected.
         </p>
 
-        <p className="mb-4 text-sm text-slate-500">Stand: Juli 2026</p>
+        <p className="mb-4 text-sm text-slate-500">Version: July 2026</p>
 
         <div className="mt-12 pt-8 border-t border-slate-200 flex flex-wrap gap-x-6 gap-y-2">
-          <Link href="/" className="text-primary font-medium hover:underline">← Zurück zur Startseite</Link>
-          <Link href="/impressum" className="text-primary font-medium hover:underline">Impressum</Link>
-          <Link href="/datenschutz" className="text-primary font-medium hover:underline">Datenschutzerklärung</Link>
-          <Link href="/widerruf" className="text-primary font-medium hover:underline">Widerrufsbelehrung</Link>
+          <Link href="/" className="text-primary font-medium hover:underline">← Back to Home</Link>
+          <Link href="/impressum" className="text-primary font-medium hover:underline">Legal Notice</Link>
+          <Link href="/datenschutz" className="text-primary font-medium hover:underline">Privacy Policy</Link>
+          <Link href="/widerruf" className="text-primary font-medium hover:underline">Right of Withdrawal</Link>
         </div>
       </div>
     </div>

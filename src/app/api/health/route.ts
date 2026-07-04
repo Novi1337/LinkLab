@@ -24,15 +24,15 @@ export async function GET() {
 
   // Aktiver DB-Test: schlägt fehl, wenn der Service-Role-Key ungültig ist
   // oder die Referral-Spalten in profiles fehlen (referrals.sql nicht ausgeführt).
-  let database = "nicht getestet - Supabase-Env-Variablen fehlen";
+  let database = "not tested - Supabase environment variables are missing";
   if (env.SUPABASE_SERVICE_ROLE_KEY && env.NEXT_PUBLIC_SUPABASE_URL) {
     try {
       const { error } = await getSupabaseAdmin()
         .from("profiles")
         .select("referral_code", { count: "exact", head: true });
-      database = error ? `Fehler ${error.code ?? "DB"}: ${error.message}` : "ok";
+      database = error ? `Error ${error.code ?? "DB"}: ${error.message}` : "ok";
     } catch (err) {
-      database = `Fehler: ${err instanceof Error ? err.message : "unbekannt"}`;
+      database = `Error: ${err instanceof Error ? err.message : "unknown"}`;
     }
   }
 

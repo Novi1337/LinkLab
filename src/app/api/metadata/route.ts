@@ -219,7 +219,7 @@ export async function GET(request: Request) {
   // Fetch-Proxy (Scraping/Traffic-Amplification) missbraucht wird.
   const user = await getUserFromRequest(request);
   if (!user) {
-    return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 });
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);

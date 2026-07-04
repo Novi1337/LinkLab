@@ -5,7 +5,7 @@ import { EyeOff } from "lucide-react";
 
 interface IncognitoPasswordModalProps {
   isOpen: boolean;
-  /** "setup" = Passwort zum ersten Mal festlegen, "unlock" = bestehendes Passwort abfragen */
+  /** "setup" = set password for the first time, "unlock" = request existing password */
   mode: "setup" | "unlock";
   error?: string | null;
   onConfirm: (password: string) => void;
@@ -35,11 +35,11 @@ export function IncognitoPasswordModal({ isOpen, mode, error, onConfirm, onCance
     if (!password) return;
     if (mode === "setup") {
       if (password.length < 4) {
-        setLocalError("Das Passwort muss mindestens 4 Zeichen lang sein.");
+        setLocalError("Your password must be at least 4 characters long.");
         return;
       }
       if (password !== confirmPassword) {
-        setLocalError("Die Passwörter stimmen nicht überein.");
+        setLocalError("Passwords do not match.");
         return;
       }
     }
@@ -61,12 +61,12 @@ export function IncognitoPasswordModal({ isOpen, mode, error, onConfirm, onCance
           </span>
           <div>
             <h3 className="text-lg font-bold text-brand-dark m-0">
-              {mode === "setup" ? "Inkognito-Passwort festlegen" : "Inkognito-Modus entsperren"}
+              {mode === "setup" ? "Set Incognito Password" : "Unlock Incognito Mode"}
             </h3>
             <p className="m-0 text-xs text-slate-500">
               {mode === "setup"
-                ? "Mit diesem Passwort blendest du private Reiter ein."
-                : "Gib dein Inkognito-Passwort ein, um private Reiter anzuzeigen."}
+                ? "Use this password to reveal private tabs."
+                : "Enter your Incognito password to show private tabs."}
             </p>
           </div>
         </div>
@@ -74,7 +74,7 @@ export function IncognitoPasswordModal({ isOpen, mode, error, onConfirm, onCance
           <input
             ref={inputRef}
             type="password"
-            placeholder={mode === "setup" ? "Neues Passwort" : "Passwort"}
+            placeholder={mode === "setup" ? "New password" : "Password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => {
@@ -86,7 +86,7 @@ export function IncognitoPasswordModal({ isOpen, mode, error, onConfirm, onCance
           {mode === "setup" && (
             <input
               type="password"
-              placeholder="Passwort wiederholen"
+              placeholder="Repeat password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               onKeyDown={(e) => {
@@ -105,13 +105,13 @@ export function IncognitoPasswordModal({ isOpen, mode, error, onConfirm, onCance
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-brand-dark hover:bg-slate-200 rounded-lg transition-colors"
           >
-            Abbrechen
+            Cancel
           </button>
           <button
             onClick={handleSubmit}
             className="px-5 py-2 text-sm font-bold text-white bg-primary hover:bg-primary-hover rounded-lg shadow-md transition-colors"
           >
-            {mode === "setup" ? "Festlegen" : "Entsperren"}
+            {mode === "setup" ? "Set Password" : "Unlock"}
           </button>
         </div>
       </div>

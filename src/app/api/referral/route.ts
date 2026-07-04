@@ -28,16 +28,16 @@ function generateReferralCode(): string {
 
 export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
-  if (!user) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   // Env-Fehler (fehlender Service-Role-Key) sauber melden statt generischem 500
   let admin;
   try {
     admin = getSupabaseAdmin();
   } catch (err) {
-    console.error("Supabase-Admin-Client nicht verfügbar:", err);
+    console.error("Supabase admin client unavailable:", err);
     return NextResponse.json(
-      { error: "Server-Konfiguration unvollständig - SUPABASE_SERVICE_ROLE_KEY prüfen" },
+      { error: "Incomplete server configuration - check SUPABASE_SERVICE_ROLE_KEY" },
       { status: 500 }
     );
   }
@@ -48,9 +48,9 @@ export async function GET(request: Request) {
     .eq("id", user.id)
     .maybeSingle();
   if (error) {
-    console.error("Referral-Profil konnte nicht geladen werden:", error);
+    console.error("Failed to load referral profile:", error);
     return NextResponse.json(
-      { error: `Referral-Daten konnten nicht geladen werden (${error.code ?? "DB"}: ${error.message})` },
+      { error: `Failed to load referral data (${error.code ?? "DB"}: ${error.message})` },
       { status: 500 }
     );
   }
@@ -67,15 +67,15 @@ export async function GET(request: Request) {
         code = candidate;
       } else if (upsertError.code !== "23505") {
         // 23505 = Unique-Kollision -> einfach neuen Code versuchen
-        console.error("Referral-Code konnte nicht gespeichert werden:", upsertError);
+        console.error("Failed to save referral code:", upsertError);
         return NextResponse.json(
-          { error: `Referral-Code konnte nicht erstellt werden (${upsertError.code ?? "DB"}: ${upsertError.message})` },
+          { error: `Failed to generate referral code (${upsertError.code ?? "DB"}: ${upsertError.message})` },
           { status: 500 }
         );
       }
     }
     if (!code) {
-      return NextResponse.json({ error: "Referral-Code konnte nicht erstellt werden" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to generate referral code" }, { status: 500 });
     }
   }
 
@@ -95,23 +95,23 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
-  if (!user) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   let code: unknown;
   try {
     ({ code } = await request.json());
   } catch {
-    return NextResponse.json({ error: "Ungültiger Request-Body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
   if (typeof code !== "string" || !/^[A-Za-z0-9]{4,16}$/.test(code.trim())) {
-    return NextResponse.json({ error: "Ungültiger Referral-Code" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid referral code" }, { status: 400 });
   }
   const normalized = code.trim().toUpperCase();
 
   // Nur neue Accounts dürfen Codes einlösen
   if (Date.now() - new Date(user.created_at).getTime() > MAX_ACCOUNT_AGE_MS) {
     return NextResponse.json(
-      { error: "Referral-Codes können nur direkt nach der Registrierung eingelöst werden" },
+      { error: "Referral codes can only be redeemed shortly after registration" },
       { status: 403 }
     );
   }
@@ -124,10 +124,10 @@ export async function POST(request: Request) {
     .eq("referral_code", normalized)
     .maybeSingle();
   if (!referrer) {
-    return NextResponse.json({ error: "Referral-Code nicht gefunden" }, { status: 404 });
+    return NextResponse.json({ error: "Referral code not found" }, { status: 404 });
   }
   if (referrer.id === user.id) {
-    return NextResponse.json({ error: "Der eigene Code kann nicht eingelöst werden" }, { status: 400 });
+    return NextResponse.json({ error: "You cannot redeem your own code" }, { status: 400 });
   }
 
   // Jeder Account kann nur EINMAL geworben werden
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
     .eq("id", user.id)
     .maybeSingle();
   if (ownProfile?.referred_by) {
-    return NextResponse.json({ error: "Für diesen Account wurde bereits ein Code eingelöst" }, { status: 409 });
+    return NextResponse.json({ error: "A code has already been redeemed for this account" }, { status: 409 });
   }
 
   if (ownProfile) {
@@ -149,14 +149,14 @@ export async function POST(request: Request) {
       .is("referred_by", null)
       .select("id");
     if (updateError || !updated?.length) {
-      return NextResponse.json({ error: "Code konnte nicht eingelöst werden" }, { status: 409 });
+      return NextResponse.json({ error: "Code could not be redeemed" }, { status: 409 });
     }
   } else {
     const { error: insertError } = await admin
       .from("profiles")
       .insert({ id: user.id, referred_by: referrer.id });
     if (insertError) {
-      return NextResponse.json({ error: "Code konnte nicht eingelöst werden" }, { status: 409 });
+      return NextResponse.json({ error: "Code could not be redeemed" }, { status: 409 });
     }
   }
 
@@ -177,7 +177,7 @@ export async function POST(request: Request) {
         .eq("id", referrer.id)
         .eq("referral_reward_granted", false);
       if (rewardError) {
-        console.error("Referral-Prämie konnte nicht gutgeschrieben werden:", rewardError);
+        console.error("Failed to grant referral reward:", rewardError);
       }
     }
   }

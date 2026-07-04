@@ -17,23 +17,23 @@ const PLANS: { id: Plan; name: string; price: string; hint: string; features: st
     id: "premium",
     name: "Premium",
     price: "12 €",
-    hint: "pro Jahr, jederzeit kündbar",
-    features: ["Unbegrenzt Reiter, Abschnitte & Unterabschnitte", "Komplett werbefrei"],
+    hint: "per year, cancel anytime",
+    features: ["Unlimited tabs, sections, and subsections", "Completely ad-free"],
   },
   {
     id: "premium_plus",
     name: "Premium+",
     price: "24 €",
-    hint: "pro Jahr, jederzeit kündbar",
-    features: ["Alles aus Premium", "Inkognito-Modus: private Reiter mit Passwortschutz"],
+    hint: "per year, cancel anytime",
+    features: ["Everything in Premium", "Incognito mode: private tabs protected by password"],
     highlight: true,
   },
   {
     id: "lifetime",
     name: "Lifetime",
     price: "69 €",
-    hint: "einmalig, für immer",
-    features: ["Alle Premium+-Funktionen inkl. Inkognito", "Einmal zahlen, dauerhaft nutzen"],
+    hint: "one-time payment, lifetime access",
+    features: ["All Premium+ features including Incognito", "Pay once, use forever"],
   },
 ];
 
@@ -49,7 +49,7 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      if (!token) throw new Error("Nicht angemeldet");
+      if (!token) throw new Error("Not signed in");
 
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -57,12 +57,12 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
         body: JSON.stringify({ plan }),
       });
       const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error || "Checkout fehlgeschlagen");
+      if (!res.ok || !data.url) throw new Error(data.error || "Checkout failed");
 
       // Weiterleitung zur gehosteten Stripe-Checkout-Seite
       window.location.assign(data.url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unbekannter Fehler");
+      setError(err instanceof Error ? err.message : "Unknown error");
       setLoadingPlan(null);
     }
   };
@@ -80,12 +80,12 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
           <div>
             <h3 className="text-lg font-bold text-brand-dark m-0">LinkLib Premium</h3>
-            <p className="text-sm text-slate-500 m-0 mt-1">Werbefrei und unbegrenzt - mit Premium+ inklusive Inkognito-Modus.</p>
+            <p className="text-sm text-slate-500 m-0 mt-1">Ad-free and unlimited — with Premium+ including Incognito mode.</p>
           </div>
           <button
             onClick={onClose}
             className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-muted hover:bg-slate-200 transition-colors text-sm"
-            title="Schließen"
+            title="Close"
           >
             ✕
           </button>
@@ -106,7 +106,7 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
                   {plan.name}
                   {plan.highlight && (
                     <span className="text-[10px] font-black uppercase tracking-wider text-white bg-primary rounded-full px-2 py-0.5">
-                      Beliebt
+                      Most Popular
                     </span>
                   )}
                 </div>
@@ -121,7 +121,7 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
                 </ul>
               </div>
               <div className="font-bold text-primary whitespace-nowrap">
-                {loadingPlan === plan.id ? "Lädt…" : plan.price}
+                {loadingPlan === plan.id ? "Loading…" : plan.price}
               </div>
             </button>
           ))}
@@ -129,14 +129,13 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
           {error && <p className="text-sm text-danger m-0">{error}</p>}
 
           <p className="text-[11px] text-slate-400 m-0 mt-1 text-center leading-relaxed">
-            Sichere Zahlung über Stripe · Abos jederzeit kündbar
+            Secure payment via Stripe · Subscriptions can be canceled anytime
             <br />
-            Mit dem Kauf akzeptierst du die{" "}
-            <a href="/agb" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">AGB</a>{" "}
-            und verlangst ausdrücklich, dass die Premium-Funktionen sofort – vor Ablauf der
-            Widerrufsfrist – freigeschaltet werden. Dir ist bekannt, dass dein{" "}
-            <a href="/widerruf" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Widerrufsrecht</a>{" "}
-            damit nach Maßgabe der gesetzlichen Regelungen erlischt.
+            By purchasing, you accept the{" "}
+            <a href="/agb" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Terms & Conditions</a>{" "}
+            and explicitly request immediate activation of Premium features before the withdrawal period ends. You acknowledge that your{" "}
+            <a href="/widerruf" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">right of withdrawal</a>{" "}
+            may expire in accordance with applicable law.
           </p>
         </div>
       </div>
