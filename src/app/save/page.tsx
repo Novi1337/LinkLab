@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * "Auf LinkLib speichern"-Popup.
+ * "Save to LinkLib" popup.
  *
  * Wird vom einbettbaren Save-Button (public/save-button.js) bzw. vom
  * Bookmarklet als kleines Popup-Fenster geöffnet:
- *   /save?url=<Seiten-URL>&title=<Seitentitel>
+ *   /save?url=<page-url>&title=<page-title>
  *
- * Ablauf: Session prüfen → Ziel-Sektion wählen (bzw. automatisch "Inbox"
- * anlegen) → Link speichern → Metadaten nachladen → Fenster schließt sich.
+ * Flow: check session -> choose target section (or auto-create "Inbox")
+ * -> save link -> load metadata -> close window.
  */
 
 import { Suspense, useCallback, useEffect, useState } from "react";
@@ -128,9 +128,9 @@ function SaveWidget() {
     if (!tabId) {
       const { data: newTab, error: tabError } = await supabase
         .from("tabs")
-        .insert([{ name: "Startseite", user_id: userId }])
+        .insert([{ name: "Home", user_id: userId }])
         .select();
-      if (tabError || !newTab?.length) throw new Error("Reiter konnte nicht angelegt werden.");
+      if (tabError || !newTab?.length) throw new Error("Tab could not be created.");
       tabId = newTab[0].id;
     }
 
@@ -138,7 +138,7 @@ function SaveWidget() {
       .from("sections")
       .insert([{ name: "Inbox", user_id: userId, parent_id: null, tab_id: tabId }])
       .select();
-    if (sectionError || !newSection?.length) throw new Error("Sektion konnte nicht angelegt werden.");
+    if (sectionError || !newSection?.length) throw new Error("Section could not be created.");
     return newSection[0].id;
   };
 
@@ -146,7 +146,7 @@ function SaveWidget() {
     const rawInput = effectiveUrl;
     const fullUrl = /^https?:\/\//i.test(rawInput) ? rawInput : `https://${rawInput}`;
     if (!isValidHttpUrl(fullUrl)) {
-      setErrorMessage("Das ist keine gültige Web-Adresse.");
+      setErrorMessage("Please enter a valid web address.");
       setStatus("error");
       return;
     }
@@ -173,12 +173,12 @@ function SaveWidget() {
         user_id: userId,
         url: fullUrl,
         title: paramTitle || domain,
-        description: "Lade Metadaten...",
+        description: "Loading metadata...",
         domain,
         initial,
       }]).select();
       if (error || !insertedData?.length) {
-        throw new Error(error?.message || "Der Link konnte nicht gespeichert werden.");
+        throw new Error(error?.message || "The link could not be saved.");
       }
 
       localStorage.setItem(TARGET_STORAGE_KEY, sectionId);
@@ -204,7 +204,7 @@ function SaveWidget() {
       // Popup nach kurzer Bestätigung automatisch schließen
       setTimeout(() => { try { window.close(); } catch {} }, 1500);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+      setErrorMessage(err instanceof Error ? err.message : "Saving failed.");
       setStatus("error");
     }
   };
@@ -216,7 +216,7 @@ function SaveWidget() {
       email: emailInput,
       password: passwordInput,
     });
-    if (error) setLoginError("Login fehlgeschlagen: " + error.message);
+    if (error) setLoginError("Login failed: " + error.message);
     // Erfolg wird über onAuthStateChange abgefangen
   };
 
@@ -227,7 +227,7 @@ function SaveWidget() {
       provider,
       options: { redirectTo: window.location.href },
     });
-    if (error) setLoginError("Login fehlgeschlagen: " + error.message);
+    if (error) setLoginError("Login failed: " + error.message);
   };
 
   const inputClass =
@@ -236,18 +236,18 @@ function SaveWidget() {
   let body: React.ReactNode;
 
   if (status === "init") {
-    body = <p className="text-center text-sm text-muted py-8">Einen Moment …</p>;
+    body = <p className="text-center text-sm text-muted py-8">One moment…</p>;
   } else if (status === "login") {
     body = (
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted text-center mb-1">
-          Melde dich an, um den Link in deiner Bibliothek zu speichern.
+          Sign in to save this link to your library.
         </p>
         <form onSubmit={handlePasswordLogin} className="flex flex-col gap-3">
           <input
             type="email"
             required
-            placeholder="E-Mail Adresse"
+            placeholder="Email address"
             value={emailInput}
             onChange={(e) => setEmailInput(e.target.value)}
             className={inputClass}
@@ -255,19 +255,19 @@ function SaveWidget() {
           <input
             type="password"
             required
-            placeholder="Passwort"
+            placeholder="Password"
             value={passwordInput}
             onChange={(e) => setPasswordInput(e.target.value)}
             className={inputClass}
           />
           <button type="submit" className="bg-primary text-white p-3 rounded-xl font-bold hover:bg-primary-hover transition-all text-sm">
-            Anmelden
+            Sign In
           </button>
         </form>
         {loginError && <p className="text-danger text-xs text-center">{loginError}</p>}
         <div className="relative flex items-center my-1">
           <div className="flex-grow border-t border-slate-200/80"></div>
-          <span className="shrink-0 px-3 text-slate-400 text-xs font-bold tracking-widest">ODER</span>
+          <span className="shrink-0 px-3 text-slate-400 text-xs font-bold tracking-widest">OR</span>
           <div className="flex-grow border-t border-slate-200/80"></div>
         </div>
         <button
@@ -275,19 +275,19 @@ function SaveWidget() {
           onClick={() => handleOAuthLogin("github")}
           className="flex items-center justify-center gap-2 bg-[#24292e] text-white p-3 rounded-xl font-semibold hover:bg-[#1b1f23] transition-all text-sm"
         >
-          Mit GitHub anmelden
+          Continue with GitHub
         </button>
         <button
           type="button"
           onClick={() => handleOAuthLogin("google")}
           className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-brand-dark p-3 rounded-xl font-semibold hover:bg-slate-50 transition-all text-sm"
         >
-          Mit Google anmelden
+          Continue with Google
         </button>
         <p className="text-xs text-slate-400 text-center mt-1">
-          Noch kein Konto?{" "}
+          No account yet?{" "}
           <a href="/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-            Kostenlos registrieren
+            Sign up for free
           </a>
         </p>
       </div>
@@ -298,8 +298,8 @@ function SaveWidget() {
         <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
         </div>
-        <h2 className="font-bold text-brand-dark mb-1">Gespeichert!</h2>
-        <p className="text-sm text-muted">Dieses Fenster schließt sich automatisch.</p>
+        <h2 className="font-bold text-brand-dark mb-1">Saved!</h2>
+        <p className="text-sm text-muted">This window will close automatically.</p>
       </div>
     );
   } else {
@@ -326,7 +326,7 @@ function SaveWidget() {
         )}
 
         <label className="flex flex-col gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wide">
-          Speichern in
+          Save to
           {options.length > 0 ? (
             <select
               value={selectedSectionId}
@@ -339,7 +339,7 @@ function SaveWidget() {
             </select>
           ) : (
             <span className="font-normal normal-case tracking-normal text-sm text-muted bg-slate-50 border border-slate-200 rounded-xl p-3">
-              Neue Sektion „Inbox“ (wird automatisch angelegt)
+              New section “Inbox” (created automatically)
             </span>
           )}
         </label>
@@ -354,7 +354,7 @@ function SaveWidget() {
           disabled={status === "saving" || !effectiveUrl}
           className="bg-primary text-white p-3.5 rounded-xl font-bold hover:bg-primary-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {status === "saving" ? "Speichere …" : "Link speichern"}
+          {status === "saving" ? "Saving…" : "Save Link"}
         </button>
       </div>
     );

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-// Das Save-Popup ist ein reines Funktionsfenster (wird vom Save-Button bzw.
-// Bookmarklet geöffnet) und soll nicht in Suchmaschinen auftauchen.
+// The save popup is a utility window (opened by the Save Button or bookmarklet)
+// and should not appear in search engines.
 export const metadata: Metadata = {
-  title: "Link speichern – LinkLib",
+  title: "Save Link - LinkLib",
   robots: { index: false, follow: false },
 };
 

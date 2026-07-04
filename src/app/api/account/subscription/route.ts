@@ -52,14 +52,14 @@ async function loadSubscriptionInfo(userId: string): Promise<SubscriptionInfo> {
 export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   try {
     return NextResponse.json(await loadSubscriptionInfo(user.id));
   } catch (err) {
-    console.error("Abo-Details konnten nicht geladen werden:", err);
-    return NextResponse.json({ error: "Abo-Details konnten nicht geladen werden" }, { status: 500 });
+    console.error("Failed to load subscription details:", err);
+    return NextResponse.json({ error: "Failed to load subscription details" }, { status: 500 });
   }
 }
 
@@ -70,17 +70,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   let action: unknown;
   try {
     ({ action } = await request.json());
   } catch {
-    return NextResponse.json({ error: "Ungültiger Request-Body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
   if (action !== "cancel" && action !== "resume") {
-    return NextResponse.json({ error: "Unbekannte Aktion" }, { status: 400 });
+    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
 
   try {
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (!profile?.stripe_subscription_id) {
-      return NextResponse.json({ error: "Kein aktives Abo vorhanden" }, { status: 400 });
+      return NextResponse.json({ error: "No active subscription found" }, { status: 400 });
     }
 
     await getStripe().subscriptions.update(profile.stripe_subscription_id, {
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(await loadSubscriptionInfo(user.id));
   } catch (err) {
-    console.error("Abo-Änderung fehlgeschlagen:", err);
-    return NextResponse.json({ error: "Abo-Änderung fehlgeschlagen" }, { status: 500 });
+    console.error("Failed to update subscription:", err);
+    return NextResponse.json({ error: "Failed to update subscription" }, { status: 500 });
   }
 }

@@ -8,13 +8,13 @@ import { getStripe, getSupabaseAdmin } from "@/lib/stripe";
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) {
-    console.error("STRIPE_WEBHOOK_SECRET ist nicht gesetzt");
-    return NextResponse.json({ error: "Webhook nicht konfiguriert" }, { status: 500 });
+    console.error("STRIPE_WEBHOOK_SECRET is not set");
+    return NextResponse.json({ error: "Webhook is not configured" }, { status: 500 });
   }
 
   const signature = request.headers.get("stripe-signature");
   if (!signature) {
-    return NextResponse.json({ error: "Signatur fehlt" }, { status: 400 });
+    return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
   let event: Stripe.Event;
@@ -22,8 +22,8 @@ export async function POST(request: Request) {
     const body = await request.text();
     event = await getStripe().webhooks.constructEventAsync(body, signature, secret);
   } catch (err) {
-    console.error("Webhook-Signaturprüfung fehlgeschlagen:", err);
-    return NextResponse.json({ error: "Ungültige Signatur" }, { status: 400 });
+    console.error("Webhook signature verification failed:", err);
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
   const supabaseAdmin = getSupabaseAdmin();
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
             await getStripe().subscriptions.cancel(existing.stripe_subscription_id);
           } catch (err) {
             // Abo existiert evtl. schon nicht mehr - Lifetime ist trotzdem aktiv
-            console.error("Altes Abo konnte nach Lifetime-Kauf nicht beendet werden:", err);
+            console.error("Failed to cancel old subscription after Lifetime purchase:", err);
           }
         }
         break;
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       // Wir reagieren erst auf die endgültige Kündigung (Event oben), aber loggen den Fall.
       case "invoice.payment_failed": {
         const invoice = event.data.object;
-        console.warn("Stripe: Zahlung fehlgeschlagen für Kunde", invoice.customer);
+        console.warn("Stripe: payment failed for customer", invoice.customer);
         break;
       }
 
@@ -91,9 +91,9 @@ export async function POST(request: Request) {
         break;
     }
   } catch (err) {
-    console.error(`Webhook-Verarbeitung fehlgeschlagen (${event.type}):`, err);
+    console.error(`Webhook processing failed (${event.type}):`, err);
     // 500 zurückgeben, damit Stripe den Event erneut zustellt
-    return NextResponse.json({ error: "Verarbeitung fehlgeschlagen" }, { status: 500 });
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

@@ -11,8 +11,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.getlinklib.com"),
-  title: "LinkLib - Deine kostenlose Link-Bibliothek | Lesezeichen organisieren",
-  description: "Organisiere, speichere und verwalte deine Lieblings-Websites, Bookmarks und Links übersichtlich in Ordnern. Komplett kostenlos und sicher in der Cloud.",
+  title: "LinkLib - Your Free Cloud Link Library | Organize Bookmarks",
+  description: "Organize, save, and manage your favorite websites, bookmarks, and links in a clean folder structure. Free to start and securely stored in the cloud.",
   applicationName: "LinkLib",
   alternates: {
     canonical: "/",
@@ -25,21 +25,21 @@ export const metadata: Metadata = {
     apple: [{ url: "/Favicon.svg", type: "image/svg+xml" }],
     shortcut: ["/Favicon.svg"],
   },
-  keywords: ["Lesezeichen verwalten", "Links speichern", "Bookmark Manager", "Link-Bibliothek", "Ordner System für Links", "Cloud Bookmarks"],
+  keywords: ["bookmark manager", "save links", "organize bookmarks", "link library", "bookmark folders", "cloud bookmarks"],
   authors: [{ name: "LinkLib" }],
   creator: "LinkLib",
   openGraph: {
-    title: "LinkLib - Der smarte Bookmark & Link Manager",
-    description: "Cloud-basiertes Lesezeichen-Management. Speichere URLs mit automatischen Vorschaubildern und sortiere sie per Drag & Drop.",
+    title: "LinkLib - The Smart Bookmark & Link Manager",
+    description: "Cloud-based bookmark management. Save URLs with automatic previews and keep everything organized with drag and drop.",
     url: "https://www.getlinklib.com",
     siteName: "LinkLib",
-    locale: "de_DE",
+    locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "LinkLib - Der smarte Bookmark & Link Manager",
-    description: "Cloud-basiertes Lesezeichen-Management. Speichere URLs mit automatischen Vorschaubildern und sortiere sie per Drag & Drop.",
+    title: "LinkLib - The Smart Bookmark & Link Manager",
+    description: "Cloud-based bookmark management. Save URLs with automatic previews and keep everything organized with drag and drop.",
   },
   robots: {
     index: true,
@@ -57,17 +57,17 @@ export const metadata: Metadata = {
   },
 };
 
-// Strukturierte Daten für Google Rich Results (Schema.org)
+// Structured data for Google Rich Results (Schema.org)
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
   name: "LinkLib",
   url: "https://www.getlinklib.com",
   description:
-    "Organisiere, speichere und verwalte deine Lieblings-Websites, Bookmarks und Links übersichtlich in Ordnern. Komplett kostenlos und sicher in der Cloud.",
+    "Organize, save, and manage your favorite websites, bookmarks, and links in a clean folder structure. Free to start and securely stored in the cloud.",
   applicationCategory: "UtilitiesApplication",
   operatingSystem: "Web",
-  inLanguage: "de",
+  inLanguage: "en",
   offers: {
     "@type": "Offer",
     price: "0",
@@ -80,12 +80,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Ersetze diese ID später durch deine eigene von Google AdSense
+  // Replace this with your own Google AdSense ID later
   const adSensePublisherId = process.env.NEXT_PUBLIC_ADSENSE_ID || "ca-pub-XXXXXXXXXXXXX";
 
   return (
     <html
-      lang="de"
+      lang="en"
       className={`${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">

@@ -21,13 +21,13 @@ type SubscriptionInfo = {
 };
 
 const PLAN_LABELS: Record<string, string> = {
-  premium: "Premium – Jahres-Abo",
-  premium_plus: "Premium+ – Jahres-Abo",
-  lifetime: "Premium – Lifetime",
+  premium: "Premium - Yearly Plan",
+  premium_plus: "Premium+ - Yearly Plan",
+  lifetime: "Premium - Lifetime Access",
 };
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" });
 }
 
 function daysUntil(iso: string): number {
@@ -68,7 +68,7 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
       setSubscription(await res.json());
       setSubError("");
     } catch {
-      setSubError("Abo-Details konnten nicht geladen werden.");
+      setSubError("Subscription details could not be loaded.");
     } finally {
       setSubLoading(false);
     }
@@ -111,7 +111,7 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
       setConfirmCancel(false);
       onSubscriptionChanged?.();
     } catch {
-      setSubError(action === "cancel" ? "Kündigung fehlgeschlagen. Bitte versuche es erneut." : "Reaktivierung fehlgeschlagen. Bitte versuche es erneut.");
+      setSubError(action === "cancel" ? "Cancellation failed. Please try again." : "Reactivation failed. Please try again.");
     } finally {
       setActionBusy(false);
     }
@@ -122,25 +122,25 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
     const res = await fetch("/api/stripe/portal", { method: "POST", headers: await authHeader() });
     const data = await res.json().catch(() => null);
     if (res.ok && data?.url) window.location.assign(data.url);
-    else setSubError("Zahlungsportal konnte nicht geöffnet werden.");
+    else setSubError("Billing portal could not be opened.");
   };
 
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordMessage(null);
     if (newPassword.length < 6) {
-      return setPasswordMessage({ type: "error", text: "Das Passwort muss mindestens 6 Zeichen lang sein." });
+      return setPasswordMessage({ type: "error", text: "Your password must be at least 6 characters long." });
     }
     if (newPassword !== repeatPassword) {
-      return setPasswordMessage({ type: "error", text: "Die Passwörter stimmen nicht überein." });
+      return setPasswordMessage({ type: "error", text: "Passwords do not match." });
     }
     setPasswordBusy(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setPasswordBusy(false);
     if (error) {
-      setPasswordMessage({ type: "error", text: "Passwort konnte nicht geändert werden: " + error.message });
+      setPasswordMessage({ type: "error", text: "Password could not be updated: " + error.message });
     } else {
-      setPasswordMessage({ type: "success", text: "Passwort erfolgreich geändert." });
+      setPasswordMessage({ type: "success", text: "Password updated successfully." });
       setNewPassword("");
       setRepeatPassword("");
     }
@@ -156,7 +156,7 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
       await supabase.auth.signOut();
       onClose();
     } catch {
-      setDeleteError("Account konnte nicht gelöscht werden. Bitte versuche es erneut.");
+      setDeleteError("Account could not be deleted. Please try again.");
       setDeleteBusy(false);
     }
   };
@@ -178,12 +178,12 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
         {/* Kopfbereich */}
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
           <div>
-            <h3 className="text-lg font-bold text-brand-dark m-0">Mein Konto</h3>
+            <h3 className="text-lg font-bold text-brand-dark m-0">My Account</h3>
             <p className="text-sm text-slate-500 m-0 mt-0.5">{userEmail}</p>
           </div>
           <button
             onClick={onClose}
-            aria-label="Schließen"
+            aria-label="Close"
             className="p-2 rounded-lg text-slate-400 hover:text-brand-dark hover:bg-slate-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -194,11 +194,11 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
           {/* ---- Abo & Zahlungsplan ---- */}
           <section>
             <h4 className="flex items-center gap-2 text-sm font-bold text-brand-dark uppercase tracking-wide mb-3">
-              <CreditCard className="w-4 h-4 text-primary" /> Abo &amp; Zahlungsplan
+              <CreditCard className="w-4 h-4 text-primary" /> Subscription &amp; Billing
             </h4>
 
             {subLoading ? (
-              <p className="text-sm text-slate-500">Lade Abo-Details …</p>
+              <p className="text-sm text-slate-500">Loading subscription details…</p>
             ) : subscription ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
@@ -213,15 +213,15 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
                           : "bg-emerald-100 text-emerald-700"
                       }`}
                     >
-                      {subscription.cancelAtPeriodEnd ? "Gekündigt" : "Aktiv"}
+                      {subscription.cancelAtPeriodEnd ? "Canceled" : "Active"}
                     </span>
                   )}
                 </div>
 
                 {isLifetime && (
                   <p className="text-sm text-slate-600 m-0">
-                    Lebenslanger Zugang – keine weiteren Zahlungen nötig.
-                    {subscription.premiumSince && <> Premium seit {formatDate(subscription.premiumSince)}.</>}
+                    Lifetime access — no further payments required.
+                    {subscription.premiumSince && <> Premium since {formatDate(subscription.premiumSince)}.</>}
                   </p>
                 )}
 
@@ -229,40 +229,40 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
                   <div className="text-sm text-slate-600 flex flex-col gap-1">
                     {subscription.cancelAtPeriodEnd ? (
                       <span>
-                        Dein Abo endet am <strong className="text-brand-dark">{formatDate(subscription.currentPeriodEnd)}</strong>{" "}
-                        (noch {daysUntil(subscription.currentPeriodEnd)} Tage). Bis dahin behältst du vollen Premium-Zugang.
+                        Your subscription ends on <strong className="text-brand-dark">{formatDate(subscription.currentPeriodEnd)}</strong>{" "}
+                        ({daysUntil(subscription.currentPeriodEnd)} days remaining). Your full Premium access remains active until then.
                       </span>
                     ) : (
                       <span>
-                        Verlängert sich automatisch am <strong className="text-brand-dark">{formatDate(subscription.currentPeriodEnd)}</strong>{" "}
-                        (in {daysUntil(subscription.currentPeriodEnd)} Tagen).
+                        Renews automatically on <strong className="text-brand-dark">{formatDate(subscription.currentPeriodEnd)}</strong>{" "}
+                        (in {daysUntil(subscription.currentPeriodEnd)} days).
                       </span>
                     )}
                   </div>
                 )}
 
                 {!subscription.plan && (
-                  <p className="text-sm text-slate-600 m-0">Du nutzt aktuell den kostenlosen Plan.</p>
+                  <p className="text-sm text-slate-600 m-0">You are currently on the Free plan.</p>
                 )}
 
                 {/* Kündigen / Reaktivieren */}
                 {hasActiveSubscription && !subscription.cancelAtPeriodEnd && (
                   confirmCancel ? (
                     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 flex flex-col gap-2">
-                      <span>Abo wirklich kündigen? Es bleibt bis zum Ende des bezahlten Zeitraums aktiv.</span>
+                      <span>Cancel your subscription? It will remain active until the end of the paid term.</span>
                       <div className="flex gap-2 justify-end">
                         <button
                           onClick={() => setConfirmCancel(false)}
                           className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
                         >
-                          Behalten
+                          Keep Plan
                         </button>
                         <button
                           onClick={() => changeSubscription("cancel")}
                           disabled={actionBusy}
                           className="px-3 py-1.5 text-sm font-bold text-white bg-danger hover:opacity-90 rounded-lg transition-colors disabled:opacity-50"
                         >
-                          {actionBusy ? "Wird gekündigt …" : "Jetzt kündigen"}
+                          {actionBusy ? "Cancelling…" : "Cancel Now"}
                         </button>
                       </div>
                     </div>
@@ -271,7 +271,7 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
                       onClick={() => setConfirmCancel(true)}
                       className="self-start text-sm font-semibold text-danger hover:underline"
                     >
-                      Abo kündigen
+                      Cancel Subscription
                     </button>
                   )
                 )}
@@ -281,7 +281,7 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
                     disabled={actionBusy}
                     className="self-start px-4 py-2 text-sm font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors disabled:opacity-50"
                   >
-                    {actionBusy ? "Wird reaktiviert …" : "Kündigung zurücknehmen"}
+                    {actionBusy ? "Reactivating…" : "Undo Cancellation"}
                   </button>
                 )}
 
@@ -291,7 +291,7 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
                     onClick={openBillingPortal}
                     className="self-start flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
                   >
-                    Rechnungen &amp; Zahlungsmethode <ExternalLink className="w-3.5 h-3.5" />
+                    Invoices &amp; Payment Method <ExternalLink className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
@@ -303,13 +303,13 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
           {/* ---- Passwort ändern ---- */}
           <section>
             <h4 className="flex items-center gap-2 text-sm font-bold text-brand-dark uppercase tracking-wide mb-3">
-              <Lock className="w-4 h-4 text-primary" /> Passwort ändern
+              <Lock className="w-4 h-4 text-primary" /> Change Password
             </h4>
             {hasPasswordLogin ? (
               <form onSubmit={changePassword} className="flex flex-col gap-3">
                 <input
                   type="password"
-                  placeholder="Neues Passwort"
+                  placeholder="New password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   autoComplete="new-password"
@@ -317,7 +317,7 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
                 />
                 <input
                   type="password"
-                  placeholder="Neues Passwort wiederholen"
+                  placeholder="Repeat new password"
                   value={repeatPassword}
                   onChange={(e) => setRepeatPassword(e.target.value)}
                   autoComplete="new-password"
@@ -333,12 +333,12 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
                   disabled={passwordBusy || !newPassword}
                   className="self-start px-4 py-2 text-sm font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors disabled:opacity-50"
                 >
-                  {passwordBusy ? "Wird gespeichert …" : "Passwort speichern"}
+                  {passwordBusy ? "Saving…" : "Save Password"}
                 </button>
               </form>
             ) : (
               <p className="text-sm text-slate-500 m-0">
-                Du meldest dich über einen externen Anbieter (z. B. Google oder GitHub) an – dein Passwort verwaltest du direkt dort.
+                You sign in through an external provider (for example Google or GitHub), so your password is managed there.
               </p>
             )}
           </section>
@@ -346,13 +346,13 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
           {/* ---- Gefahrenzone: Account löschen ---- */}
           <section>
             <h4 className="flex items-center gap-2 text-sm font-bold text-danger uppercase tracking-wide mb-3">
-              <Trash2 className="w-4 h-4" /> Account löschen
+              <Trash2 className="w-4 h-4" /> Delete Account
             </h4>
             {confirmDelete ? (
               <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex flex-col gap-3">
                 <p className="text-sm text-red-800 m-0">
-                  <strong>Letzte Warnung:</strong> Dein Account, alle gespeicherten Links, Sektionen und Reiter sowie ein
-                  eventuell laufendes Abo werden sofort und unwiderruflich gelöscht.
+                  <strong>Final warning:</strong> Your account, all saved links, sections, and tabs, as well as any active subscription,
+                  will be deleted immediately and permanently.
                 </p>
                 {deleteError && <p className="text-sm text-danger m-0 font-semibold">{deleteError}</p>}
                 <div className="flex gap-2 justify-end">
@@ -361,14 +361,14 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
                     disabled={deleteBusy}
                     className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
                   >
-                    Abbrechen
+                    Cancel
                   </button>
                   <button
                     onClick={deleteAccount}
                     disabled={deleteBusy}
                     className="px-4 py-1.5 text-sm font-bold text-white bg-danger hover:opacity-90 rounded-lg transition-colors disabled:opacity-50"
                   >
-                    {deleteBusy ? "Wird gelöscht …" : "Endgültig löschen"}
+                    {deleteBusy ? "Deleting…" : "Delete Permanently"}
                   </button>
                 </div>
               </div>
@@ -377,7 +377,7 @@ export function AccountModal({ isOpen, userEmail, onClose, onSubscriptionChanged
                 onClick={() => setConfirmDelete(true)}
                 className="px-4 py-2 text-sm font-bold text-danger border border-red-200 hover:bg-red-50 rounded-lg transition-colors"
               >
-                Account unwiderruflich löschen
+                Delete Account Permanently
               </button>
             )}
           </section>

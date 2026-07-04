@@ -10,7 +10,7 @@ import { getStripe, getSupabaseAdmin, getUserFromRequest } from "@/lib/stripe";
 export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const supabaseAdmin = getSupabaseAdmin();
@@ -35,18 +35,18 @@ export async function POST(request: Request) {
     // 2. Nutzerdaten löschen (Kind-Tabellen zuerst, falls kein ON DELETE CASCADE existiert)
     for (const table of ["links", "sections", "tabs"] as const) {
       const { error } = await supabaseAdmin.from(table).delete().eq("user_id", user.id);
-      if (error) throw new Error(`Löschen aus "${table}" fehlgeschlagen: ${error.message}`);
+      if (error) throw new Error(`Failed to delete from "${table}": ${error.message}`);
     }
     const { error: profileError } = await supabaseAdmin.from("profiles").delete().eq("id", user.id);
-    if (profileError) throw new Error(`Löschen des Profils fehlgeschlagen: ${profileError.message}`);
+    if (profileError) throw new Error(`Failed to delete profile: ${profileError.message}`);
 
     // 3. Auth-User löschen - danach ist kein Login mehr möglich
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
-    if (authError) throw new Error(`Löschen des Auth-Users fehlgeschlagen: ${authError.message}`);
+    if (authError) throw new Error(`Failed to delete auth user: ${authError.message}`);
 
     return NextResponse.json({ deleted: true });
   } catch (err) {
-    console.error("Account-Löschung fehlgeschlagen:", err);
-    return NextResponse.json({ error: "Account konnte nicht gelöscht werden" }, { status: 500 });
+    console.error("Account deletion failed:", err);
+    return NextResponse.json({ error: "Account could not be deleted" }, { status: 500 });
   }
 }

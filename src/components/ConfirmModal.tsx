@@ -11,7 +11,7 @@ interface ConfirmModalProps {
   onCancel: () => void;
 }
 
-export function ConfirmModal({ isOpen, title, message, confirmLabel = "Löschen", onConfirm, onCancel }: ConfirmModalProps) {
+export function ConfirmModal({ isOpen, title, message, confirmLabel = "Delete", onConfirm, onCancel }: ConfirmModalProps) {
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function ConfirmModal({ isOpen, title, message, confirmLabel = "Löschen"
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-brand-dark hover:bg-slate-200 rounded-lg transition-colors"
           >
-            Abbrechen
+            Cancel
           </button>
           <button
             ref={confirmButtonRef}

@@ -108,7 +108,7 @@
       text.textContent = label;
       btn.appendChild(text);
     }
-    if (!btn.getAttribute("title")) btn.setAttribute("title", "Auf LinkLib speichern");
+    if (!btn.getAttribute("title")) btn.setAttribute("title", "Save to LinkLib");
   }
 
   function scan(root) {

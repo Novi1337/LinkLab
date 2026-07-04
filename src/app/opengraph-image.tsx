@@ -1,11 +1,11 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "LinkLib – Deine kostenlose Link-Bibliothek";
+export const alt = "LinkLib - Your Free Cloud Link Library";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Dynamisch generiertes OG-Image (wird von Next.js automatisch als
-// og:image und twitter:image eingebunden).
+// Dynamically generated OG image (automatically used by Next.js as
+// og:image and twitter:image).
 export default function OpengraphImage() {
   return new ImageResponse(
     (
@@ -58,7 +58,7 @@ export default function OpengraphImage() {
             opacity: 0.85,
           }}
         >
-          Deine diskrete Link-Bibliothek in der Cloud
+          Your private link library in the cloud
         </div>
         <div
           style={{
