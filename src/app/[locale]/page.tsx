@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { ReactSortable } from "react-sortablejs";
 import { supabase } from "@/lib/supabaseClient";
 import { AdBanner } from "@/components/AdBanner";
-import { Edit2, Eye, EyeOff, Gift } from "lucide-react";
+import { Edit2, Eye, EyeOff, Gift, Share2 } from "lucide-react";
 import { PromptModal } from "@/components/PromptModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { UpgradeModal } from "@/components/UpgradeModal";
@@ -226,6 +226,19 @@ export default function Home() {
     if (ref && /^[A-Za-z0-9]{4,16}$/.test(ref)) {
       localStorage.setItem("linklib_pending_ref", ref.toUpperCase());
       params.delete("ref");
+      const query = params.toString();
+      window.history.replaceState({}, "", window.location.pathname + (query ? `?${query}` : ""));
+    }
+  }, []);
+
+  // Share-Link (?share=TOKEN): Token lokal merken, damit ein Empfänger den
+  // Inhalt nach Login/Registrierung automatisch übernehmen kann.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareToken = params.get("share");
+    if (shareToken && /^[A-Za-z0-9_-]{12,256}$/.test(shareToken)) {
+      localStorage.setItem("linklib_pending_share", shareToken);
+      params.delete("share");
       const query = params.toString();
       window.history.replaceState({}, "", window.location.pathname + (query ? `?${query}` : ""));
     }
@@ -455,6 +468,34 @@ export default function Home() {
       }
     };
 
+    // Nach Klick auf einen Share-Link: Inhalt serverseitig in das eigene Profil
+    // kopieren und danach die Reiter/Sektionen im UI aktualisieren.
+    const redeemPendingShare = async (accessToken: string) => {
+      const token = localStorage.getItem("linklib_pending_share");
+      if (!token) return;
+      try {
+        const res = await fetch("/api/share/redeem", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ token }),
+        });
+
+        if (res.ok) {
+          localStorage.removeItem("linklib_pending_share");
+          const data = await res.json().catch(() => ({}));
+          await fetchData(data?.targetTabId || null);
+          return;
+        }
+
+        // Keine erneute Schleife bei permanenten Fehlern.
+        if (res.status === 400 || res.status === 404 || res.status === 409) {
+          localStorage.removeItem("linklib_pending_share");
+        }
+      } catch {
+        // Netzwerkfehler: Token behalten und beim nächsten Laden erneut versuchen
+      }
+    };
+
     // onAuthStateChange feuert beim Registrieren sofort mit der aktuellen Session (Event "INITIAL_SESSION"),
     // ein zusätzlicher separater getSession()-Aufruf hier würde fetchData() doppelt und parallel auslösen
     // (Race Condition: doppelter "Startseite"-Tab für neue Nutzer).
@@ -465,6 +506,7 @@ export default function Home() {
         fetchData(null);
         fetchPremiumStatus();
         redeemPendingReferral(session.access_token);
+        redeemPendingShare(session.access_token);
       } else {
         setIsLoggedIn(false);
         setUserEmail("");
@@ -723,6 +765,65 @@ export default function Home() {
     });
   };
 
+  const shareResource = async (type: "tab" | "section", id: string, label: string) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) {
+      alert("Bitte zuerst anmelden.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/share/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ type, id }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        throw new Error(data?.error || "Share-Link konnte nicht erstellt werden.");
+      }
+
+      const shareUrl = data.url as string;
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `LinkLib: ${label}`,
+            text: `Ich teile mit dir: ${label}`,
+            url: shareUrl,
+          });
+          return;
+        } catch {
+          // Fallback auf Copy + Direktkanäle
+        }
+      }
+
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        alert("Share-Link wurde in die Zwischenablage kopiert.");
+      } catch {
+        alert(`Share-Link:\n${shareUrl}`);
+      }
+
+      const waText = encodeURIComponent(`Schau dir diesen Inhalt in LinkLib an: ${shareUrl}`);
+      const mailSubject = encodeURIComponent(`LinkLib geteilt: ${label}`);
+      const mailBody = encodeURIComponent(`Hi,\n\nich habe diesen Inhalt in LinkLib mit dir geteilt:\n${shareUrl}\n\nNach Login/Registrierung wird er in deinem Profil angelegt.`);
+
+      if (window.confirm("In WhatsApp Web teilen?")) {
+        window.open(`https://web.whatsapp.com/send?text=${waText}`, "_blank", "noopener,noreferrer");
+        return;
+      }
+      if (window.confirm("Per E-Mail teilen?")) {
+        window.location.href = `mailto:?subject=${mailSubject}&body=${mailBody}`;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+      alert("Teilen fehlgeschlagen: " + message);
+    }
+  };
+
   // Wird aufgerufen, wenn Links innerhalb einer Sektion neu sortiert ODER von einer anderen Sektion hinzugefügt werden
   const updateSectionLinks = (sectionId: string, newLinks: Link[]) => {
     setSections(prev => updateSectionInState(prev, sectionId, s => {
@@ -793,6 +894,13 @@ export default function Home() {
           <div className="flex gap-4 items-center opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={() => setActiveLinkForm(activeLinkForm === section.id ? null : section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
               {t.addLink}
+            </button>
+            <button
+              onClick={() => shareResource("section", section.id, `Abschnitt ${section.name}`)}
+              className="text-sm font-medium text-primary hover:text-primary-hover inline-flex items-center gap-1"
+              title="Abschnitt teilen"
+            >
+              <Share2 className="w-3.5 h-3.5" /> Teilen
             </button>
             {depth === 0 && (
               <button onClick={() => addSection(section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
@@ -1081,6 +1189,15 @@ export default function Home() {
                     {tab.is_private ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </span>
                 )}
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); shareResource("tab", tab.id, `Reiter ${tab.name}`); }}
+                  title="Reiter teilen"
+                  className="w-3.5 h-3.5 transition-opacity opacity-0 group-hover/tab:opacity-100 text-slate-300 hover:text-primary-hover"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                </span>
                 <Edit2 
                   onClick={(e) => { e.stopPropagation(); renameTab(tab.id, tab.name); }} 
                   className="w-3.5 h-3.5 transition-opacity opacity-0 group-hover/tab:opacity-100 hover:text-primary-hover"
