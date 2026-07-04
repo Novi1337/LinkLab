@@ -7,6 +7,13 @@ type NicknameBody = {
 
 const MAX_NICKNAME_LENGTH = 32;
 
+function mapNicknameDbError(error: { code?: string; message?: string } | null | undefined): string {
+  if (error?.code === "42703") {
+    return "DB-Spalte fehlt: Bitte in Supabase ausführen: alter table public.profiles add column if not exists share_nickname text;";
+  }
+  return "Nickname konnte nicht gespeichert werden";
+}
+
 function normalizeNickname(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const collapsed = input.replace(/\s+/g, " ").trim();
@@ -31,7 +38,7 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("Nickname konnte nicht geladen werden:", error);
-      return NextResponse.json({ error: "Nickname konnte nicht geladen werden" }, { status: 500 });
+      return NextResponse.json({ error: mapNicknameDbError(error) }, { status: 500 });
     }
 
     return NextResponse.json({ nickname: data?.share_nickname ?? null });
@@ -73,7 +80,7 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error("Nickname konnte nicht gespeichert werden:", error);
-      return NextResponse.json({ error: "Nickname konnte nicht gespeichert werden" }, { status: 500 });
+      return NextResponse.json({ error: mapNicknameDbError(error) }, { status: 500 });
     }
 
     return NextResponse.json({ nickname: data?.share_nickname ?? null });

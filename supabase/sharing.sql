@@ -32,6 +32,10 @@ alter table public.tabs
 alter table public.sections
   add column if not exists shared_from_label text;
 
+-- Optionaler Anzeigename für Share-Labels ("Geteilt von <Nickname>")
+alter table public.profiles
+  add column if not exists share_nickname text;
+
 -- Share-Tabellen sind nur über Server-Endpunkte erreichbar.
 -- Service-Role-Key umgeht RLS; für Client-Zugriffe werden keine Policies vergeben.
 alter table public.share_tokens enable row level security;

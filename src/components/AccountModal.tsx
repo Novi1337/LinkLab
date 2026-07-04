@@ -207,10 +207,13 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
         type: "success",
         text: isEn ? "Nickname saved." : "Nickname gespeichert.",
       });
-    } catch {
+    } catch (err) {
       setNicknameMessage({
         type: "error",
-        text: isEn ? "Nickname could not be saved." : "Nickname konnte nicht gespeichert werden.",
+        text:
+          err instanceof Error && err.message
+            ? err.message
+            : (isEn ? "Nickname could not be saved." : "Nickname konnte nicht gespeichert werden."),
       });
     } finally {
       setNicknameBusy(false);
