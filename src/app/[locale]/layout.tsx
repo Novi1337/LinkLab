@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { CookieConsent } from "./cookie-consent";
 import { AdSense } from "@/components/AdSense";
-import "./globals.css";
+import "../globals.css";
 import type { AppLocale } from "@/lib/locale";
 
 const inter = Inter({
@@ -81,9 +81,10 @@ export default async function RootLayout({
   params,
 }: Readonly<{
   children: React.ReactNode;
-  params: Promise<{ locale: AppLocale }>;
+  params: Promise<{ locale: string }>;
 }>) {
-  const { locale } = await params;
+  const { locale: rawLocale } = await params;
+  const locale: AppLocale = rawLocale === "en" ? "en" : "de";
 
   const jsonLd = {
     ...baseJsonLd,
