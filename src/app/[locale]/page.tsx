@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import { ReactSortable } from "react-sortablejs";
 import { supabase } from "@/lib/supabaseClient";
 import { AdBanner } from "@/components/AdBanner";
-import { Edit2, Eye, EyeOff, Gift, Share2 } from "lucide-react";
+import { Edit2, Eye, EyeOff, Flag, Gift, Share2 } from "lucide-react";
 import { PromptModal } from "@/components/PromptModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { ReportModal } from "@/components/ReportModal";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { IncognitoPasswordModal } from "@/components/IncognitoPasswordModal";
 import { ReferralModal } from "@/components/ReferralModal";
@@ -15,6 +16,7 @@ import { AccountModal } from "@/components/AccountModal";
 import { LegalFooter } from "@/components/LegalFooter";
 import { LandingSections } from "@/components/LandingSections";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import type { ModerationReasonCode } from "@/lib/moderation";
 import { isOwnerClientUser } from "@/lib/ownerClient";
 import { localeFromPathname, type AppLocale } from "@/lib/locale";
 
@@ -51,6 +53,12 @@ type Tab = {
   shared_from_handle?: string | null;
 };
 
+type ReportTarget = {
+  resourceType: "tab" | "section";
+  resourceId: string;
+  label: string;
+};
+
 // Kuratierte Akzentfarben, mit denen Nutzer einzelne Tabs/Sektionen markieren können,
 // um sie auf einen Blick unterscheiden zu können (unabhängig vom blauen Standard-Primary-Ton).
 const COLOR_PALETTE: { name: string; value: string }[] = [
@@ -77,6 +85,62 @@ function truncateDescription(text?: string | null): string {
   const lastSpace = cut.lastIndexOf(" ");
   return `${(lastSpace > 40 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
+
+const REPORT_REASON_LABELS: Record<ModerationReasonCode, { de: string; en: string }> = {
+  csam: {
+    de: "Darstellung sexualisierter Gewalt gegen Minderjährige (CSAM)",
+    en: "Child sexual abuse material (CSAM)",
+  },
+  animal_abuse: {
+    de: "Tiermissbrauch / schwere Tierquälerei",
+    en: "Animal abuse / extreme cruelty",
+  },
+  non_consensual_intimate: {
+    de: "Nicht-einvernehmliche intime Inhalte",
+    en: "Non-consensual intimate content",
+  },
+  human_trafficking: {
+    de: "Menschenhandel / Ausbeutung",
+    en: "Human trafficking / exploitation",
+  },
+  malware_phishing: {
+    de: "Malware, Phishing oder Credential Theft",
+    en: "Malware, phishing, or credential theft",
+  },
+  scam: {
+    de: "Betrug / Scam",
+    en: "Fraud / scam",
+  },
+  terror_extremism_illegal: {
+    de: "Klar illegale terroristische/extremistische Gewaltinhalte",
+    en: "Clearly illegal terror/extremist violent content",
+  },
+  threats_doxxing: {
+    de: "Direkte Gewaltandrohung / Doxxing",
+    en: "Direct violent threat / doxxing",
+  },
+  serious_crime_market_or_instruction: {
+    de: "Marktplatz oder Anleitung für schwere Straftaten",
+    en: "Marketplace or instructions for serious crimes",
+  },
+  other_illegal: {
+    de: "Sonstiger klar illegaler Inhalt",
+    en: "Other clearly illegal content",
+  },
+};
+
+const REPORT_REASON_CODES: ModerationReasonCode[] = [
+  "csam",
+  "animal_abuse",
+  "non_consensual_intimate",
+  "human_trafficking",
+  "malware_phishing",
+  "scam",
+  "terror_extremism_illegal",
+  "threats_doxxing",
+  "serious_crime_market_or_instruction",
+  "other_illegal",
+];
 
 // SHA-256-Hash (hex) für das Inkognito-Passwort. Das Klartext-Passwort verlässt
 // nie den Browser - in der DB liegt nur der mit der User-ID gesalzene Hash.
@@ -174,6 +238,10 @@ export default function Home() {
     shareNeedHandle: isEn
       ? "Please set a share handle in account settings first."
       : "Bitte lege zuerst in den Kontoeinstellungen einen Share-Handle fest.",
+    report: isEn ? "Report" : "Melden",
+    reportSent: isEn ? "Thanks, your report has been sent." : "Danke, deine Meldung wurde gesendet.",
+    reportFailed: isEn ? "Report could not be sent." : "Meldung konnte nicht gesendet werden.",
+    reportAuthRequired: isEn ? "Please log in first." : "Bitte zuerst anmelden.",
     showSenderEmail: isEn ? "Show sender email" : "Absender-E-Mail anzeigen",
     senderEmailPrefix: isEn ? "Shared by" : "Geteilt von",
   };
@@ -207,6 +275,9 @@ export default function Home() {
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [referralModalOpen, setReferralModalOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const referralPremiumActive = !!referralUntil && new Date(referralUntil) > new Date();
   const isPremium = ownerPremium || !!premiumPlan || referralPremiumActive;
   // Inkognito-Modus ist Premium+ und Lifetime vorbehalten -
@@ -222,6 +293,10 @@ export default function Home() {
     mode: "setup" | "unlock";
     error: string | null;
   }>({ isOpen: false, mode: "unlock", error: null });
+  const reportReasonOptions = REPORT_REASON_CODES.map((code) => ({
+    value: code,
+    label: isEn ? REPORT_REASON_LABELS[code].en : REPORT_REASON_LABELS[code].de,
+  }));
 
   const fetchPremiumStatus = useCallback(async () => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -539,6 +614,9 @@ export default function Home() {
         setPremiumPlan(null);
         setReferralUntil(null);
         setOwnerPremium(false);
+        setReportTarget(null);
+        setReportError(null);
+        setReportBusy(false);
         setIncognitoUnlocked(false);
         setIncognitoHash(null);
       }
@@ -806,6 +884,46 @@ export default function Home() {
     alert(`${t.senderEmailPrefix}: ${email}`);
   };
 
+  const openReportDialog = (target: ReportTarget) => {
+    setReportError(null);
+    setReportTarget(target);
+  };
+
+  const submitReport = async (payload: { reasonCode: ModerationReasonCode; details: string }) => {
+    if (!reportTarget) return;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) {
+      setReportError(t.reportAuthRequired);
+      return;
+    }
+
+    setReportBusy(true);
+    setReportError(null);
+    try {
+      const res = await fetch("/api/moderation/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          resourceType: reportTarget.resourceType,
+          resourceId: reportTarget.resourceId,
+          reasonCode: payload.reasonCode,
+          details: payload.details.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || t.reportFailed);
+      setReportTarget(null);
+      alert(t.reportSent);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t.reportFailed;
+      setReportError(message);
+    } finally {
+      setReportBusy(false);
+    }
+  };
+
   const shareResource = async (type: "tab" | "section", id: string, label: string) => {
     if (!isPremium) {
       alert(t.sharePremiumOnly);
@@ -868,7 +986,7 @@ export default function Home() {
         return;
       }
       if (window.confirm("Per E-Mail teilen?")) {
-        window.location.href = `mailto:?subject=${mailSubject}&body=${mailBody}`;
+        window.location.assign(`mailto:?subject=${mailSubject}&body=${mailBody}`);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unbekannter Fehler";
@@ -944,6 +1062,23 @@ export default function Home() {
                   className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full"
                 >
                   {section.shared_from_label}
+                </button>
+              )}
+              {section.shared_from_label && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openReportDialog({
+                      resourceType: "section",
+                      resourceId: section.id,
+                      label: `${isEn ? "Section" : "Abschnitt"}: ${section.name}`,
+                    });
+                  }}
+                  title={t.report}
+                  className="text-[10px] font-bold uppercase tracking-wider text-danger bg-red-50 px-2 py-1 rounded-full inline-flex items-center gap-1"
+                >
+                  <Flag className="w-3 h-3" /> {t.report}
                 </button>
               )}
               <Edit2 className="w-4 h-4 text-slate-300 opacity-0 group-hover/heading:opacity-100 transition-opacity" />
@@ -1284,18 +1419,35 @@ export default function Home() {
                 <div className="flex items-center gap-2 w-full min-w-0">
                   <span className="truncate min-w-0" style={tab.color ? { color: tab.color } : undefined}>{tab.name}</span>
                   {tab.shared_from_label && (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        revealSharedSender(tab.shared_from_email);
-                      }}
-                      title={tab.shared_from_email ? t.showSenderEmail : tab.shared_from_label}
-                      className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0"
-                    >
-                      {tab.shared_from_label}
-                    </span>
+                    <>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          revealSharedSender(tab.shared_from_email);
+                        }}
+                        title={tab.shared_from_email ? t.showSenderEmail : tab.shared_from_label}
+                        className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0"
+                      >
+                        {tab.shared_from_label}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openReportDialog({
+                            resourceType: "tab",
+                            resourceId: tab.id,
+                            label: `${isEn ? "Tab" : "Reiter"}: ${tab.name}`,
+                          });
+                        }}
+                        title={t.report}
+                        className="text-[10px] font-bold uppercase tracking-wider text-danger bg-red-50 px-2 py-1 rounded-full shrink-0 inline-flex items-center gap-1"
+                      >
+                        <Flag className="w-3 h-3" /> {t.report}
+                      </button>
+                    </>
                   )}
                 </div>
               </button>
@@ -1434,6 +1586,22 @@ export default function Home() {
         onConfirm={confirmData.onConfirm}
         onCancel={closeConfirm}
       />
+      {reportTarget && (
+        <ReportModal
+          isOpen
+          locale={locale}
+          targetLabel={reportTarget.label}
+          reasonOptions={reportReasonOptions}
+          busy={reportBusy}
+          error={reportError}
+          onSubmit={submitReport}
+          onCancel={() => {
+            if (reportBusy) return;
+            setReportTarget(null);
+            setReportError(null);
+          }}
+        />
+      )}
       {/* Premium Upgrade Modal */}
       <UpgradeModal isOpen={upgradeModalOpen} locale={locale} onClose={() => setUpgradeModalOpen(false)} />
       {/* Freunde einladen (Empfehlungsprogramm) - bei jedem Öffnen frisch gemountet */}

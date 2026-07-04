@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
+import { isTimestampActive } from "@/lib/moderation";
+import {
+  extractNormalizedDomainsFromLinks,
+  findMatchingBlockedDomain,
+  loadActiveBlockedDomainRules,
+  type BlockedDomainRule,
+} from "@/lib/shareModeration";
 import { getSupabaseAdmin, getUserFromRequest } from "@/lib/stripe";
 
 type RedeemBody = {
   token?: string;
 };
+
+const UNAVAILABLE_SHARE_ERROR = "Share-Link ist derzeit nicht verfügbar";
 
 type ShareTokenRow = {
   token: string;
@@ -12,6 +21,9 @@ type ShareTokenRow = {
   source_tab_id: string | null;
   source_section_id: string | null;
   revoked: boolean;
+  revoked_reason: string | null;
+  revoked_at: string | null;
+  revoked_by_admin_id: string | null;
   expires_at: string | null;
 };
 
@@ -198,11 +210,21 @@ async function redeemSharedTab(params: {
   ownerUserId: string;
   recipientUserId: string;
   sourceTabId: string;
+  blockedDomainRules: BlockedDomainRule[];
   sharedFromLabel: string;
   sharedFromEmail: string | null;
   sharedFromHandle: string | null;
 }): Promise<string> {
-  const { admin, ownerUserId, recipientUserId, sourceTabId, sharedFromLabel, sharedFromEmail, sharedFromHandle } = params;
+  const {
+    admin,
+    ownerUserId,
+    recipientUserId,
+    sourceTabId,
+    blockedDomainRules,
+    sharedFromLabel,
+    sharedFromEmail,
+    sharedFromHandle,
+  } = params;
 
   const { data: sourceTab } = await admin
     .from("tabs")
@@ -245,6 +267,14 @@ async function redeemSharedTab(params: {
 
   if (linksError) throw new Error("Links des geteilten Reiters konnten nicht geladen werden");
 
+  const blockedDomain = findMatchingBlockedDomain(
+    extractNormalizedDomainsFromLinks((sourceLinks || []) as Array<{ domain: string | null; url: string }>),
+    blockedDomainRules
+  );
+  if (blockedDomain) {
+    throw new Error(UNAVAILABLE_SHARE_ERROR);
+  }
+
   const { data: targetTab, error: targetTabError } = await admin
     .from("tabs")
     .insert({
@@ -284,11 +314,21 @@ async function redeemSharedSection(params: {
   ownerUserId: string;
   recipientUserId: string;
   sourceSectionId: string;
+  blockedDomainRules: BlockedDomainRule[];
   sharedFromLabel: string;
   sharedFromEmail: string | null;
   sharedFromHandle: string | null;
 }): Promise<string> {
-  const { admin, ownerUserId, recipientUserId, sourceSectionId, sharedFromLabel, sharedFromEmail, sharedFromHandle } = params;
+  const {
+    admin,
+    ownerUserId,
+    recipientUserId,
+    sourceSectionId,
+    blockedDomainRules,
+    sharedFromLabel,
+    sharedFromEmail,
+    sharedFromHandle,
+  } = params;
 
   const { data: allSections, error: allSectionsError } = await admin
     .from("sections")
@@ -318,6 +358,14 @@ async function redeemSharedSection(params: {
 
   if (linksError) {
     throw new Error("Links des geteilten Abschnitts konnten nicht geladen werden");
+  }
+
+  const blockedDomain = findMatchingBlockedDomain(
+    extractNormalizedDomainsFromLinks((sourceLinks || []) as Array<{ domain: string | null; url: string }>),
+    blockedDomainRules
+  );
+  if (blockedDomain) {
+    throw new Error(UNAVAILABLE_SHARE_ERROR);
   }
 
   const targetTabId = await ensureSharedTab(admin, recipientUserId);
@@ -359,7 +407,9 @@ export async function POST(request: Request) {
 
   const { data: shareToken, error: tokenError } = await admin
     .from("share_tokens")
-    .select("token, owner_user_id, resource_type, source_tab_id, source_section_id, revoked, expires_at")
+    .select(
+      "token, owner_user_id, resource_type, source_tab_id, source_section_id, revoked, revoked_reason, revoked_at, revoked_by_admin_id, expires_at"
+    )
     .eq("token", token)
     .maybeSingle();
 
@@ -372,6 +422,7 @@ export async function POST(request: Request) {
   if (
     !shareTokenRow ||
     shareTokenRow.revoked ||
+    !!shareTokenRow.revoked_at ||
     (shareTokenRow.expires_at && new Date(shareTokenRow.expires_at) < new Date())
   ) {
     return NextResponse.json({ error: "Share-Link ist ungültig oder abgelaufen" }, { status: 404 });
@@ -381,13 +432,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Eigene Share-Links können nicht eingelöst werden" }, { status: 400 });
   }
 
-  const { data: ownerUser } = await admin.auth.admin.getUserById(shareTokenRow.owner_user_id);
+  const { data: ownerUser, error: ownerUserError } = await admin.auth.admin.getUserById(
+    shareTokenRow.owner_user_id
+  );
+  if (ownerUserError) {
+    console.error("Share-Owner konnte nicht geladen werden:", ownerUserError);
+    return NextResponse.json({ error: "Share-Link konnte nicht geprüft werden" }, { status: 500 });
+  }
   const ownerEmail = ownerUser.user?.email?.trim() || null;
-  const { data: ownerProfile } = await admin
+  const { data: ownerProfile, error: ownerProfileError } = await admin
     .from("profiles")
-    .select("share_nickname, share_handle")
+    .select("share_nickname, share_handle, sharing_disabled_until, suspended_until, account_status")
     .eq("id", shareTokenRow.owner_user_id)
     .maybeSingle();
+  if (ownerProfileError) {
+    console.error("Share-Owner-Profil konnte nicht geladen werden:", ownerProfileError);
+    return NextResponse.json({ error: "Share-Link konnte nicht geprüft werden" }, { status: 500 });
+  }
+  if (
+    isTimestampActive(ownerProfile?.sharing_disabled_until) ||
+    isTimestampActive(ownerProfile?.suspended_until) ||
+    ownerProfile?.account_status === "suspended"
+  ) {
+    return NextResponse.json({ error: UNAVAILABLE_SHARE_ERROR }, { status: 403 });
+  }
   const ownerHandle = ownerProfile?.share_handle?.trim() || null;
   const ownerNickname = ownerProfile?.share_nickname?.trim() || null;
   const sharedBy = ownerNickname || ownerHandle || ownerEmail;
@@ -411,6 +479,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const blockedDomainRules = await loadActiveBlockedDomainRules(admin);
     let targetTabId = "";
 
     if (shareTokenRow.resource_type === "tab") {
@@ -422,6 +491,7 @@ export async function POST(request: Request) {
         ownerUserId: shareTokenRow.owner_user_id,
         recipientUserId: user.id,
         sourceTabId: shareTokenRow.source_tab_id,
+        blockedDomainRules,
         sharedFromLabel,
         sharedFromEmail: ownerEmail,
         sharedFromHandle: ownerHandle,
@@ -435,6 +505,7 @@ export async function POST(request: Request) {
         ownerUserId: shareTokenRow.owner_user_id,
         recipientUserId: user.id,
         sourceSectionId: shareTokenRow.source_section_id,
+        blockedDomainRules,
         sharedFromLabel,
         sharedFromEmail: ownerEmail,
         sharedFromHandle: ownerHandle,
@@ -452,6 +523,10 @@ export async function POST(request: Request) {
       .delete()
       .eq("token", token)
       .eq("recipient_user_id", user.id);
+    const message = error instanceof Error ? error.message : "";
+    if (message === UNAVAILABLE_SHARE_ERROR) {
+      return NextResponse.json({ error: UNAVAILABLE_SHARE_ERROR }, { status: 403 });
+    }
     return NextResponse.json({ error: "Geteilter Inhalt konnte nicht übernommen werden" }, { status: 500 });
   }
 }

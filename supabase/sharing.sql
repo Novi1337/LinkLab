@@ -8,6 +8,9 @@ create table if not exists public.share_tokens (
   source_tab_id uuid references public.tabs (id) on delete cascade,
   source_section_id uuid references public.sections (id) on delete cascade,
   revoked boolean not null default false,
+  revoked_reason text,
+  revoked_at timestamptz,
+  revoked_by_admin_id uuid references auth.users (id) on delete set null,
   created_at timestamptz not null default now(),
   expires_at timestamptz
 );
@@ -16,6 +19,16 @@ create index if not exists share_tokens_owner_user_id_idx on public.share_tokens
 create index if not exists share_tokens_created_at_idx on public.share_tokens (created_at desc);
 -- Für das Rate-Limit in /api/share/create (Tokens pro Nutzer der letzten Stunde)
 create index if not exists share_tokens_owner_created_idx on public.share_tokens (owner_user_id, created_at desc);
+create index if not exists share_tokens_revoked_at_idx on public.share_tokens (revoked_at desc) where revoked = true;
+
+alter table public.share_tokens
+  add column if not exists revoked_reason text;
+
+alter table public.share_tokens
+  add column if not exists revoked_at timestamptz;
+
+alter table public.share_tokens
+  add column if not exists revoked_by_admin_id uuid references auth.users (id) on delete set null;
 
 create table if not exists public.share_redemptions (
   token text not null references public.share_tokens (token) on delete cascade,
