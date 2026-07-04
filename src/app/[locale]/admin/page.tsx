@@ -45,12 +45,25 @@ type TopDomainRow = {
   count: number;
 };
 
+type AdminDirectoryRow = {
+  userId: string;
+  nickname: string | null;
+  email: string | null;
+  tag: string | null;
+  country: string | null;
+  linksGathered: number;
+  timeOfRegistry: string | null;
+  lastLogin: string | null;
+  ipAddress: string | null;
+};
+
 type DashboardResponse = {
   reports: ReportRow[];
   recentRevokedShares: RevokedShareRow[];
   restrictedUsers: RestrictedUserRow[];
   blockedDomains: BlockedDomainRow[];
   topDomains: TopDomainRow[];
+  adminDirectory: AdminDirectoryRow[];
 };
 
 type AdminActionPayload = Record<string, unknown>;
@@ -92,6 +105,7 @@ export default function AdminPage() {
   const [userIdInput, setUserIdInput] = useState("");
   const [userUntilInput, setUserUntilInput] = useState(defaultUserUntilValue());
   const [userReasonInput, setUserReasonInput] = useState("");
+  const [directorySearch, setDirectorySearch] = useState("");
 
   const getAccessToken = useCallback(async (): Promise<string> => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -287,6 +301,26 @@ export default function AdminPage() {
     }
   };
 
+  const filteredAdminDirectory = (data?.adminDirectory || []).filter((row) => {
+    const query = directorySearch.trim().toLowerCase();
+    if (!query) return true;
+
+    const haystack = [
+      row.nickname,
+      row.email,
+      row.tag,
+      row.country,
+      row.ipAddress,
+      row.userId,
+      String(row.linksGathered),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(query);
+  });
+
   return (
     <main className="max-w-shell mx-auto px-5 py-8 flex flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -396,6 +430,62 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 m-0">
+                {isEn ? "Registered users" : "Registrierte Nutzer"}
+              </h2>
+              <input
+                type="text"
+                value={directorySearch}
+                onChange={(e) => setDirectorySearch(e.target.value)}
+                placeholder={
+                  isEn
+                    ? "Search: nickname, email, tag, country, IP, user ID"
+                    : "Suche: Nickname, E-Mail, Tag, Land, IP, User-ID"
+                }
+                className="w-full md:w-96 p-2 rounded-lg border border-slate-300 text-sm"
+              />
+            </div>
+
+            {filteredAdminDirectory.length === 0 ? (
+              <p className="text-sm text-slate-500 m-0">{isEn ? "No users found." : "Keine Nutzer gefunden."}</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-slate-500">
+                      <th className="py-2 pr-3">{isEn ? "Nickname" : "Nickname"}</th>
+                      <th className="py-2 pr-3">Email</th>
+                      <th className="py-2 pr-3">Tag</th>
+                      <th className="py-2 pr-3">{isEn ? "Country" : "Land"}</th>
+                      <th className="py-2 pr-3">{isEn ? "Links gathered" : "Gesammelte Links"}</th>
+                      <th className="py-2 pr-3">{isEn ? "Time of registry" : "Registriert am"}</th>
+                      <th className="py-2 pr-3">{isEn ? "Last login" : "Letzter Login"}</th>
+                      <th className="py-2 pr-3">{isEn ? "IP address" : "IP-Adresse"}</th>
+                      <th className="py-2">User ID</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAdminDirectory.map((row) => (
+                      <tr key={row.userId} className="border-t border-slate-100 align-top">
+                        <td className="py-2 pr-3">{row.nickname || "-"}</td>
+                        <td className="py-2 pr-3 break-all">{row.email || "-"}</td>
+                        <td className="py-2 pr-3">{row.tag || "-"}</td>
+                        <td className="py-2 pr-3">{row.country || "-"}</td>
+                        <td className="py-2 pr-3 font-semibold">{row.linksGathered}</td>
+                        <td className="py-2 pr-3 text-xs text-slate-500">{formatDate(row.timeOfRegistry, locale)}</td>
+                        <td className="py-2 pr-3 text-xs text-slate-500">{formatDate(row.lastLogin, locale)}</td>
+                        <td className="py-2 pr-3 font-mono text-xs">{row.ipAddress || "-"}</td>
+                        <td className="py-2 font-mono text-xs break-all">{row.userId}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-4">

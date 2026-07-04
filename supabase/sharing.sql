@@ -15,12 +15,7 @@ create table if not exists public.share_tokens (
   expires_at timestamptz
 );
 
-create index if not exists share_tokens_owner_user_id_idx on public.share_tokens (owner_user_id);
-create index if not exists share_tokens_created_at_idx on public.share_tokens (created_at desc);
--- Für das Rate-Limit in /api/share/create (Tokens pro Nutzer der letzten Stunde)
-create index if not exists share_tokens_owner_created_idx on public.share_tokens (owner_user_id, created_at desc);
-create index if not exists share_tokens_revoked_at_idx on public.share_tokens (revoked_at desc) where revoked = true;
-
+-- Zuerst fehlende Spalten hinzufügen (vor Indizes, die sie referenzieren)
 alter table public.share_tokens
   add column if not exists revoked_reason text;
 
@@ -29,6 +24,13 @@ alter table public.share_tokens
 
 alter table public.share_tokens
   add column if not exists revoked_by_admin_id uuid references auth.users (id) on delete set null;
+
+-- Dann Indizes erstellen
+create index if not exists share_tokens_owner_user_id_idx on public.share_tokens (owner_user_id);
+create index if not exists share_tokens_created_at_idx on public.share_tokens (created_at desc);
+-- Für das Rate-Limit in /api/share/create (Tokens pro Nutzer der letzten Stunde)
+create index if not exists share_tokens_owner_created_idx on public.share_tokens (owner_user_id, created_at desc);
+create index if not exists share_tokens_revoked_at_idx on public.share_tokens (revoked_at desc) where revoked = true;
 
 create table if not exists public.share_redemptions (
   token text not null references public.share_tokens (token) on delete cascade,
