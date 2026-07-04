@@ -50,14 +50,16 @@ type Tab = {
 // Kuratierte Akzentfarben, mit denen Nutzer einzelne Tabs/Sektionen markieren können,
 // um sie auf einen Blick unterscheiden zu können (unabhängig vom blauen Standard-Primary-Ton).
 const COLOR_PALETTE: { name: string; value: string }[] = [
-  { name: "Rot", value: "#ef4444" },
-  { name: "Orange", value: "#f97316" },
-  { name: "Amber", value: "#eab308" },
-  { name: "Grün", value: "#22c55e" },
-  { name: "Türkis", value: "#14b8a6" },
-  { name: "Blau", value: "#0284c7" },
-  { name: "Violett", value: "#8b5cf6" },
-  { name: "Pink", value: "#ec4899" },
+  { name: "Rot", value: "#dc2626" },
+  { name: "Orange", value: "#ea580c" },
+  { name: "Amber", value: "#ca8a04" },
+  { name: "Grün", value: "#16a34a" },
+  { name: "Türkis", value: "#0f766e" },
+  { name: "Blau", value: "#2563eb" },
+  { name: "Indigo", value: "#4f46e5" },
+  { name: "Violett", value: "#7c3aed" },
+  { name: "Pink", value: "#db2777" },
+  { name: "Slate", value: "#334155" },
 ];
 
 // Kürzt eine Beschreibung auf eine sinnvolle Länge, ohne mitten im Wort abzuschneiden,
@@ -180,6 +182,12 @@ export default function Home() {
   const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({});
   const [activeLinkForm, setActiveLinkForm] = useState<string | null>(null);
   const [colorPickerOpenId, setColorPickerOpenId] = useState<string | null>(null);
+  const [tabEditModal, setTabEditModal] = useState<{
+    isOpen: boolean;
+    tabId: string | null;
+    name: string;
+    color: string;
+  }>({ isOpen: false, tabId: null, name: "", color: COLOR_PALETTE[5].value });
 
   // Premium: null = noch nicht geladen, sonst der aktive Plan (oder "" = kein Premium).
   // Zusätzlich kann zeitlich begrenztes Premium aus dem Empfehlungsprogramm aktiv sein.
@@ -542,13 +550,24 @@ export default function Home() {
     });
   };
 
-  const renameTab = async (tabId: string, oldName: string) => {
-    openPrompt(t.renameTabPrompt, oldName, async (name) => {
-      closePrompt();
-      if (!name || name.trim() === oldName) return;
-      await supabase.from("tabs").update({ name: name.trim() }).eq("id", tabId);
-      setTabs(tabs.map(t => t.id === tabId ? { ...t, name: name.trim() } : t));
+  const renameTab = (tabId: string, oldName: string) => {
+    const tab = tabs.find((item) => item.id === tabId);
+    setTabEditModal({
+      isOpen: true,
+      tabId,
+      name: oldName,
+      color: tab?.color || COLOR_PALETTE[5].value,
     });
+  };
+
+  const saveTabEdit = async () => {
+    const tabId = tabEditModal.tabId;
+    const name = tabEditModal.name.trim();
+    if (!tabId || !name) return;
+
+    await supabase.from("tabs").update({ name, color: tabEditModal.color }).eq("id", tabId);
+    setTabs((prev) => prev.map((item) => (item.id === tabId ? { ...item, name, color: tabEditModal.color } : item)));
+    setTabEditModal({ isOpen: false, tabId: null, name: "", color: COLOR_PALETTE[5].value });
   };
 
   const deleteTab = async (tabId: string) => {
@@ -880,16 +899,6 @@ export default function Home() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
               )}
             </button>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setColorPickerOpenId(colorPickerOpenId === `section-${section.id}` ? null : `section-${section.id}`)}
-                title={t.assignColor}
-                className="w-3 h-3 rounded-full shrink-0 border border-slate-300 hover:scale-125 transition-transform"
-                style={{ backgroundColor: section.color || "transparent" }}
-              />
-              {colorPickerOpenId === `section-${section.id}` && renderColorPicker(section.color, (color) => updateSectionColor(section.id, color))}
-            </div>
             <h3 className={`${depth > 0 ? "text-base font-semibold text-brand-dark" : "text-lg font-semibold text-brand-dark"} m-0 flex items-center gap-2 group/heading cursor-pointer`} onClick={() => renameSection(section.id, section.name)} title={t.clickToEdit}>
               {section.name}
               {section.shared_from_label && (
@@ -1179,14 +1188,6 @@ export default function Home() {
                 style={activeTabId === tab.id && tab.color ? { borderColor: tab.color, color: tab.color } : undefined}
               >
                 <div className="flex items-center gap-1 opacity-0 group-hover/tab:opacity-100 transition-opacity w-full justify-start">
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); setColorPickerOpenId(colorPickerOpenId === `tab-${tab.id}` ? null : `tab-${tab.id}`); }}
-                    title={t.assignColor}
-                    className="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-300 hover:scale-125 transition-transform"
-                    style={{ backgroundColor: tab.color || "transparent" }}
-                  />
                   {incognitoUnlocked && (
                     <span
                       role="button"
@@ -1214,7 +1215,7 @@ export default function Home() {
                     tabIndex={0}
                     onClick={(e) => { e.stopPropagation(); renameTab(tab.id, tab.name); }}
                     title={t.tabRenameTitle}
-                    className="w-3.5 h-3.5 text-slate-300 hover:text-primary-hover"
+                    className="w-3.5 h-3.5 text-slate-300 hover:text-primary-hover flex items-center justify-center leading-none"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </span>
@@ -1224,14 +1225,14 @@ export default function Home() {
                       tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); deleteTab(tab.id); }}
                       title={t.tabDeleteTitle}
-                      className="w-3.5 h-3.5 text-slate-300 hover:text-danger"
+                      className="w-3.5 h-3.5 text-slate-300 hover:text-danger flex items-center justify-center leading-none -translate-y-px"
                     >
                       ✕
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 w-full min-w-0">
-                  <span className="truncate min-w-0">{tab.name}</span>
+                  <span className="truncate min-w-0" style={tab.color ? { color: tab.color } : undefined}>{tab.name}</span>
                   {tab.shared_from_label && (
                     <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0">
                       {tab.shared_from_label}
@@ -1239,7 +1240,7 @@ export default function Home() {
                   )}
                 </div>
               </button>
-              {colorPickerOpenId === `tab-${tab.id}` && renderColorPicker(tab.color, (color) => updateTabColor(tab.id, color))}
+              
             </div>
           ))}
           <button 
@@ -1306,6 +1307,55 @@ export default function Home() {
       <footer className="max-w-shell mx-auto px-5 pb-8 text-center">
         <LegalFooter locale={locale} />
       </footer>
+      {tabEditModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-5 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-brand-dark m-0">{t.renameTabPrompt}</h3>
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <input
+                type="text"
+                value={tabEditModal.name}
+                onChange={(e) => setTabEditModal((prev) => ({ ...prev, name: e.target.value }))}
+                className="w-full p-3 rounded-xl border border-slate-300 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-brand-dark"
+              />
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">{isEn ? "Text color" : "Schriftfarbe"}</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {COLOR_PALETTE.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setTabEditModal((prev) => ({ ...prev, color: c.value }))}
+                      title={c.name}
+                      className="h-9 rounded-xl border transition-transform hover:scale-[1.03]"
+                      style={{ backgroundColor: c.value, borderColor: tabEditModal.color === c.value ? "#0f172a" : "transparent" }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => setTabEditModal({ isOpen: false, tabId: null, name: "", color: COLOR_PALETTE[5].value })}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-brand-dark hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                {isEn ? "Cancel" : "Abbrechen"}
+              </button>
+              <button
+                onClick={saveTabEdit}
+                className="px-5 py-2 text-sm font-bold text-white bg-primary hover:bg-primary-hover rounded-lg shadow-md transition-colors"
+              >
+                {isEn ? "Save" : "Speichern"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Prompt Modal */}
       <PromptModal
         isOpen={promptData.isOpen}
