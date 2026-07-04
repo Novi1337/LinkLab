@@ -885,7 +885,10 @@ export default function Home() {
       <div key={section.id} className={`bg-transparent ${depth > 0 ? "ml-6 mt-4 border-l-2 border-primary/20 pl-5" : ""}`}>
         <div
           className="section-header flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 border-b border-slate-300 pb-2 cursor-move gap-2 sm:gap-0 group"
-          style={section.color ? { borderBottomColor: section.color } : undefined}
+          style={{
+            ...(section.color ? { borderBottomColor: section.color } : {}),
+            touchAction: "pan-y",
+          }}
         >
           <div className="flex items-center gap-3">
             <button 
@@ -955,6 +958,10 @@ export default function Home() {
               setList={(newList) => updateSectionLinks(section.id, newList)}
               animation={150}
               group={{ name: "links", pull: true, put: true }}
+              delayOnTouchOnly={true}
+              delay={160}
+              touchStartThreshold={8}
+              fallbackTolerance={8}
               tag="ul"
               className={`grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 min-h-[12px] rounded-xl transition-colors ${section.links.length === 0 ? "border-2 border-dashed border-slate-200" : ""}`}
             >
@@ -994,6 +1001,10 @@ export default function Home() {
                 setList={(newList) => setSections(prev => updateSectionInState(prev, section.id, s => ({...s, subSections: newList})))} 
                 animation={150} 
                 handle=".section-header" 
+                delayOnTouchOnly={true}
+                delay={160}
+                touchStartThreshold={8}
+                fallbackTolerance={8}
                 className="flex flex-col gap-3"
               >
                 {section.subSections.map((sub, index) => (
