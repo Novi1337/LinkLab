@@ -3,10 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/i18n-sync.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/i18n-sync.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "i18n:sync": "node scripts/i18n-sync.mjs",
+    "i18n:check": "node scripts/i18n-sync.mjs --check",
+    "i18n:watch": "node scripts/i18n-watch.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
