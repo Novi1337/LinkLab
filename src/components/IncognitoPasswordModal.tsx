@@ -8,11 +8,13 @@ interface IncognitoPasswordModalProps {
   /** "setup" = Passwort zum ersten Mal festlegen, "unlock" = bestehendes Passwort abfragen */
   mode: "setup" | "unlock";
   error?: string | null;
+  locale?: "de" | "en";
   onConfirm: (password: string) => void;
   onCancel: () => void;
 }
 
-export function IncognitoPasswordModal({ isOpen, mode, error, onConfirm, onCancel }: IncognitoPasswordModalProps) {
+export function IncognitoPasswordModal({ isOpen, mode, error, locale = "de", onConfirm, onCancel }: IncognitoPasswordModalProps) {
+  const isEn = locale === "en";
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
@@ -35,11 +37,11 @@ export function IncognitoPasswordModal({ isOpen, mode, error, onConfirm, onCance
     if (!password) return;
     if (mode === "setup") {
       if (password.length < 4) {
-        setLocalError("Das Passwort muss mindestens 4 Zeichen lang sein.");
+        setLocalError(isEn ? "Password must be at least 4 characters long." : "Das Passwort muss mindestens 4 Zeichen lang sein.");
         return;
       }
       if (password !== confirmPassword) {
-        setLocalError("Die Passwörter stimmen nicht überein.");
+        setLocalError(isEn ? "Passwords do not match." : "Die Passwörter stimmen nicht überein.");
         return;
       }
     }
@@ -61,12 +63,14 @@ export function IncognitoPasswordModal({ isOpen, mode, error, onConfirm, onCance
           </span>
           <div>
             <h3 className="text-lg font-bold text-brand-dark m-0">
-              {mode === "setup" ? "Inkognito-Passwort festlegen" : "Inkognito-Modus entsperren"}
+              {mode === "setup"
+                ? (isEn ? "Set incognito password" : "Inkognito-Passwort festlegen")
+                : (isEn ? "Unlock incognito mode" : "Inkognito-Modus entsperren")}
             </h3>
             <p className="m-0 text-xs text-slate-500">
               {mode === "setup"
-                ? "Mit diesem Passwort blendest du private Reiter ein."
-                : "Gib dein Inkognito-Passwort ein, um private Reiter anzuzeigen."}
+                ? (isEn ? "Use this password to reveal your private tabs." : "Mit diesem Passwort blendest du private Reiter ein.")
+                : (isEn ? "Enter your incognito password to show private tabs." : "Gib dein Inkognito-Passwort ein, um private Reiter anzuzeigen.")}
             </p>
           </div>
         </div>
@@ -74,7 +78,7 @@ export function IncognitoPasswordModal({ isOpen, mode, error, onConfirm, onCance
           <input
             ref={inputRef}
             type="password"
-            placeholder={mode === "setup" ? "Neues Passwort" : "Passwort"}
+            placeholder={mode === "setup" ? (isEn ? "New password" : "Neues Passwort") : (isEn ? "Password" : "Passwort")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => {
@@ -86,7 +90,7 @@ export function IncognitoPasswordModal({ isOpen, mode, error, onConfirm, onCance
           {mode === "setup" && (
             <input
               type="password"
-              placeholder="Passwort wiederholen"
+              placeholder={isEn ? "Repeat password" : "Passwort wiederholen"}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               onKeyDown={(e) => {
@@ -105,13 +109,13 @@ export function IncognitoPasswordModal({ isOpen, mode, error, onConfirm, onCance
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-brand-dark hover:bg-slate-200 rounded-lg transition-colors"
           >
-            Abbrechen
+            {isEn ? "Cancel" : "Abbrechen"}
           </button>
           <button
             onClick={handleSubmit}
             className="px-5 py-2 text-sm font-bold text-white bg-primary hover:bg-primary-hover rounded-lg shadow-md transition-colors"
           >
-            {mode === "setup" ? "Festlegen" : "Entsperren"}
+            {mode === "setup" ? (isEn ? "Set password" : "Festlegen") : (isEn ? "Unlock" : "Entsperren")}
           </button>
         </div>
       </div>

@@ -12,8 +12,10 @@
  */
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { localeFromPathname, localizePath } from "@/lib/locale";
 
 // Gleiche Kürzungslogik wie in der Haupt-App, damit Beschreibungen
 // unabhängig vom Eingangsweg identisch aussehen.
@@ -45,6 +47,9 @@ function isValidHttpUrl(value: string): boolean {
 }
 
 function SaveWidget() {
+  const pathname = usePathname();
+  const locale = localeFromPathname(pathname);
+  const isEn = locale === "en";
   const searchParams = useSearchParams();
   const paramUrl = searchParams.get("url")?.trim() || "";
   const paramTitle = searchParams.get("title")?.trim() || "";
@@ -128,9 +133,9 @@ function SaveWidget() {
     if (!tabId) {
       const { data: newTab, error: tabError } = await supabase
         .from("tabs")
-        .insert([{ name: "Startseite", user_id: userId }])
+        .insert([{ name: isEn ? "Home" : "Startseite", user_id: userId }])
         .select();
-      if (tabError || !newTab?.length) throw new Error("Reiter konnte nicht angelegt werden.");
+      if (tabError || !newTab?.length) throw new Error(isEn ? "Tab could not be created." : "Reiter konnte nicht angelegt werden.");
       tabId = newTab[0].id;
     }
 
@@ -138,7 +143,7 @@ function SaveWidget() {
       .from("sections")
       .insert([{ name: "Inbox", user_id: userId, parent_id: null, tab_id: tabId }])
       .select();
-    if (sectionError || !newSection?.length) throw new Error("Sektion konnte nicht angelegt werden.");
+    if (sectionError || !newSection?.length) throw new Error(isEn ? "Section could not be created." : "Sektion konnte nicht angelegt werden.");
     return newSection[0].id;
   };
 
@@ -146,7 +151,7 @@ function SaveWidget() {
     const rawInput = effectiveUrl;
     const fullUrl = /^https?:\/\//i.test(rawInput) ? rawInput : `https://${rawInput}`;
     if (!isValidHttpUrl(fullUrl)) {
-      setErrorMessage("Das ist keine gültige Web-Adresse.");
+      setErrorMessage(isEn ? "This is not a valid web address." : "Das ist keine gültige Web-Adresse.");
       setStatus("error");
       return;
     }
@@ -173,12 +178,12 @@ function SaveWidget() {
         user_id: userId,
         url: fullUrl,
         title: paramTitle || domain,
-        description: "Lade Metadaten...",
+        description: isEn ? "Loading metadata..." : "Lade Metadaten...",
         domain,
         initial,
       }]).select();
       if (error || !insertedData?.length) {
-        throw new Error(error?.message || "Der Link konnte nicht gespeichert werden.");
+        throw new Error(error?.message || (isEn ? "The link could not be saved." : "Der Link konnte nicht gespeichert werden."));
       }
 
       localStorage.setItem(TARGET_STORAGE_KEY, sectionId);
@@ -204,7 +209,7 @@ function SaveWidget() {
       // Popup nach kurzer Bestätigung automatisch schließen
       setTimeout(() => { try { window.close(); } catch {} }, 1500);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+      setErrorMessage(err instanceof Error ? err.message : (isEn ? "Saving failed." : "Speichern fehlgeschlagen."));
       setStatus("error");
     }
   };
@@ -216,7 +221,7 @@ function SaveWidget() {
       email: emailInput,
       password: passwordInput,
     });
-    if (error) setLoginError("Login fehlgeschlagen: " + error.message);
+    if (error) setLoginError((isEn ? "Login failed: " : "Login fehlgeschlagen: ") + error.message);
     // Erfolg wird über onAuthStateChange abgefangen
   };
 
@@ -227,7 +232,7 @@ function SaveWidget() {
       provider,
       options: { redirectTo: window.location.href },
     });
-    if (error) setLoginError("Login fehlgeschlagen: " + error.message);
+    if (error) setLoginError((isEn ? "Login failed: " : "Login fehlgeschlagen: ") + error.message);
   };
 
   const inputClass =
@@ -236,18 +241,18 @@ function SaveWidget() {
   let body: React.ReactNode;
 
   if (status === "init") {
-    body = <p className="text-center text-sm text-muted py-8">Einen Moment …</p>;
+    body = <p className="text-center text-sm text-muted py-8">{isEn ? "One moment ..." : "Einen Moment …"}</p>;
   } else if (status === "login") {
     body = (
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted text-center mb-1">
-          Melde dich an, um den Link in deiner Bibliothek zu speichern.
+          {isEn ? "Log in to save this link to your library." : "Melde dich an, um den Link in deiner Bibliothek zu speichern."}
         </p>
         <form onSubmit={handlePasswordLogin} className="flex flex-col gap-3">
           <input
             type="email"
             required
-            placeholder="E-Mail Adresse"
+            placeholder={isEn ? "Email address" : "E-Mail Adresse"}
             value={emailInput}
             onChange={(e) => setEmailInput(e.target.value)}
             className={inputClass}
@@ -255,19 +260,19 @@ function SaveWidget() {
           <input
             type="password"
             required
-            placeholder="Passwort"
+            placeholder={isEn ? "Password" : "Passwort"}
             value={passwordInput}
             onChange={(e) => setPasswordInput(e.target.value)}
             className={inputClass}
           />
           <button type="submit" className="bg-primary text-white p-3 rounded-xl font-bold hover:bg-primary-hover transition-all text-sm">
-            Anmelden
+            {isEn ? "Log in" : "Anmelden"}
           </button>
         </form>
         {loginError && <p className="text-danger text-xs text-center">{loginError}</p>}
         <div className="relative flex items-center my-1">
           <div className="flex-grow border-t border-slate-200/80"></div>
-          <span className="shrink-0 px-3 text-slate-400 text-xs font-bold tracking-widest">ODER</span>
+          <span className="shrink-0 px-3 text-slate-400 text-xs font-bold tracking-widest">{isEn ? "OR" : "ODER"}</span>
           <div className="flex-grow border-t border-slate-200/80"></div>
         </div>
         <button
@@ -275,19 +280,19 @@ function SaveWidget() {
           onClick={() => handleOAuthLogin("github")}
           className="flex items-center justify-center gap-2 bg-[#24292e] text-white p-3 rounded-xl font-semibold hover:bg-[#1b1f23] transition-all text-sm"
         >
-          Mit GitHub anmelden
+          {isEn ? "Continue with GitHub" : "Mit GitHub anmelden"}
         </button>
         <button
           type="button"
           onClick={() => handleOAuthLogin("google")}
           className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-brand-dark p-3 rounded-xl font-semibold hover:bg-slate-50 transition-all text-sm"
         >
-          Mit Google anmelden
+          {isEn ? "Continue with Google" : "Mit Google anmelden"}
         </button>
         <p className="text-xs text-slate-400 text-center mt-1">
-          Noch kein Konto?{" "}
-          <a href="/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-            Kostenlos registrieren
+          {isEn ? "No account yet?" : "Noch kein Konto?"}{" "}
+          <a href={localizePath("/", locale)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            {isEn ? "Register for free" : "Kostenlos registrieren"}
           </a>
         </p>
       </div>
@@ -298,8 +303,8 @@ function SaveWidget() {
         <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
         </div>
-        <h2 className="font-bold text-brand-dark mb-1">Gespeichert!</h2>
-        <p className="text-sm text-muted">Dieses Fenster schließt sich automatisch.</p>
+        <h2 className="font-bold text-brand-dark mb-1">{isEn ? "Saved!" : "Gespeichert!"}</h2>
+        <p className="text-sm text-muted">{isEn ? "This window closes automatically." : "Dieses Fenster schließt sich automatisch."}</p>
       </div>
     );
   } else {
@@ -326,7 +331,7 @@ function SaveWidget() {
         )}
 
         <label className="flex flex-col gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wide">
-          Speichern in
+          {isEn ? "Save to" : "Speichern in"}
           {options.length > 0 ? (
             <select
               value={selectedSectionId}
@@ -339,7 +344,7 @@ function SaveWidget() {
             </select>
           ) : (
             <span className="font-normal normal-case tracking-normal text-sm text-muted bg-slate-50 border border-slate-200 rounded-xl p-3">
-              Neue Sektion „Inbox“ (wird automatisch angelegt)
+              {isEn ? "New section \"Inbox\" (created automatically)" : "Neue Sektion „Inbox“ (wird automatisch angelegt)"}
             </span>
           )}
         </label>
@@ -354,7 +359,7 @@ function SaveWidget() {
           disabled={status === "saving" || !effectiveUrl}
           className="bg-primary text-white p-3.5 rounded-xl font-bold hover:bg-primary-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {status === "saving" ? "Speichere …" : "Link speichern"}
+          {status === "saving" ? (isEn ? "Saving ..." : "Speichere …") : (isEn ? "Save link" : "Link speichern")}
         </button>
       </div>
     );

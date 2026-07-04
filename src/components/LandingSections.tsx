@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizePath, type AppLocale } from "@/lib/locale";
 import {
   Cloud,
   EyeOff,
@@ -79,22 +80,113 @@ const FAQS = [
   },
 ];
 
-// Schema.org FAQPage für Google Rich Results – aus denselben Daten generiert,
-// damit sichtbarer Inhalt und strukturierte Daten garantiert übereinstimmen.
-const faqJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: FAQS.map((faq) => ({
-    "@type": "Question",
-    name: faq.question,
-    acceptedAnswer: {
-      "@type": "Answer",
-      text: faq.answer,
-    },
-  })),
+const CONTENT: Record<AppLocale, {
+  featureHeadline: string;
+  featureSubline: string;
+  faqHeadline: string;
+  faqSubline: string;
+  features: typeof FEATURES;
+  faqs: typeof FAQS;
+}> = {
+  de: {
+    featureHeadline: "Alles, was deine Links brauchen",
+    featureSubline:
+      "LinkLib ist die übersichtliche Alternative zu unsortierten Browser-Lesezeichen – gebaut für Menschen, die viele Links sammeln.",
+    faqHeadline: "Häufige Fragen",
+    faqSubline: "Kurz beantwortet – alles Wichtige rund um deine Link-Bibliothek.",
+    features: FEATURES,
+    faqs: FAQS,
+  },
+  en: {
+    featureHeadline: "Everything your links need",
+    featureSubline:
+      "LinkLib is the clean alternative to messy browser bookmarks, built for people who collect lots of links.",
+    faqHeadline: "Frequently asked questions",
+    faqSubline: "Quick answers to the most important questions about your link library.",
+    features: [
+      {
+        icon: FolderOpen,
+        title: "Tabs & folders",
+        text: "Organize your links in tabs and color-coded folders, sorted with drag and drop just the way you think.",
+      },
+      {
+        icon: ImageIcon,
+        title: "Automatic previews",
+        text: "Title, description, and preview image are loaded automatically when you save a link, no manual work needed.",
+      },
+      {
+        icon: MousePointerClick,
+        title: "Save button & bookmarklet",
+        text: "Save links from any website in one click, no copy and paste required.",
+        href: "/save-button",
+        linkLabel: "Learn more about the Save button →",
+      },
+      {
+        icon: Cloud,
+        title: "Available everywhere",
+        text: "Your library is stored securely in the cloud and synced across desktop, tablet, and phone.",
+      },
+      {
+        icon: EyeOff,
+        title: "Incognito tabs",
+        text: "Private password-protected tabs keep sensitive links visible only to you.",
+      },
+      {
+        icon: Sparkles,
+        title: "Start for free",
+        text: "All core features stay free forever, sign up in seconds and get started.",
+      },
+    ],
+    faqs: [
+      {
+        question: "What is LinkLib?",
+        answer:
+          "LinkLib is a free online bookmark manager. Save links, videos, and articles in your personal library and organize everything neatly in tabs and folders, securely in the cloud.",
+      },
+      {
+        question: "Is LinkLib really free?",
+        answer:
+          "Yes. All core features are free forever and funded by discreet ads. With LinkLib Premium, you can use the app ad-free and unlock extras like password-protected incognito tabs.",
+      },
+      {
+        question: "Which devices support LinkLib?",
+        answer:
+          "LinkLib runs directly in your browser with no installation required. Your library syncs automatically across desktop, laptop, tablet, and phone.",
+      },
+      {
+        question: "How do I save a link?",
+        answer:
+          "Just paste the URL and LinkLib automatically fetches title, description, and preview image. For even faster saving, use the Save button or bookmarklet to save links directly from any website.",
+      },
+      {
+        question: "Is my data secure?",
+        answer:
+          "Yes. Your data is transmitted securely and processed in compliance with GDPR requirements. Private incognito tabs can be additionally protected with a password. See our privacy policy for details.",
+      },
+      {
+        question: "Do I need a credit card?",
+        answer:
+          "No. To sign up, an email address or a Google/GitHub account is enough. Payment details are only needed if you choose to upgrade to Premium.",
+      },
+    ],
+  },
 };
 
-export function LandingSections() {
+export function LandingSections({ locale = "de" }: { locale?: AppLocale }) {
+  const content = CONTENT[locale];
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: content.faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
+
   return (
     <>
       <script
@@ -104,15 +196,12 @@ export function LandingSections() {
 
       {/* FEATURES */}
       <section id="features" className="max-w-shell mx-auto px-5 py-20">
-        <h2 className="text-3xl font-extrabold text-center mb-3">
-          Alles, was deine Links brauchen
-        </h2>
+        <h2 className="text-3xl font-extrabold text-center mb-3">{content.featureHeadline}</h2>
         <p className="text-slate-500 text-center font-medium mb-12 max-w-2xl mx-auto">
-          LinkLib ist die übersichtliche Alternative zu unsortierten Browser-Lesezeichen –
-          gebaut für Menschen, die viele Links sammeln.
+          {content.featureSubline}
         </p>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((feature) => (
+          {content.features.map((feature) => (
             <div
               key={feature.title}
               className="bg-white/80 backdrop-blur-md rounded-2xl p-6 border border-white/60 shadow-lg text-left"
@@ -122,7 +211,7 @@ export function LandingSections() {
               <p className="text-slate-600 text-sm leading-relaxed">{feature.text}</p>
               {feature.href && (
                 <Link
-                  href={feature.href}
+                  href={localizePath(feature.href, locale)}
                   className="inline-block mt-3 text-sm font-semibold text-primary hover:text-primary-hover transition-colors"
                 >
                   {feature.linkLabel}
@@ -135,12 +224,12 @@ export function LandingSections() {
 
       {/* FAQ */}
       <section id="faq" className="max-w-3xl mx-auto px-5 pb-20">
-        <h2 className="text-3xl font-extrabold text-center mb-3">Häufige Fragen</h2>
+        <h2 className="text-3xl font-extrabold text-center mb-3">{content.faqHeadline}</h2>
         <p className="text-slate-500 text-center font-medium mb-10">
-          Kurz beantwortet – alles Wichtige rund um deine Link-Bibliothek.
+          {content.faqSubline}
         </p>
         <div className="flex flex-col gap-3">
-          {FAQS.map((faq) => (
+          {content.faqs.map((faq) => (
             <details
               key={faq.question}
               className="group bg-white/80 backdrop-blur-md rounded-2xl border border-white/60 shadow-md open:shadow-lg transition-shadow"

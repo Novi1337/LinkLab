@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 interface ReferralModalProps {
   isOpen: boolean;
   onClose: () => void;
+  locale?: "de" | "en";
 }
 
 type ReferralInfo = {
@@ -17,13 +18,14 @@ type ReferralInfo = {
   premiumUntil: string | null;
 };
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" });
+function formatDate(iso: string, locale: "de" | "en"): string {
+  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "de-DE", { day: "2-digit", month: "long", year: "numeric" });
 }
 
 // Zeigt den persönlichen Einladungslink samt Status der Empfehlungs-Prämie:
 // Ab 10 erfolgreichen Empfehlungen gibt es 1 Jahr Premium gratis.
-export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
+export function ReferralModal({ isOpen, onClose, locale = "de" }: ReferralModalProps) {
+  const isEn = locale === "en";
   const [info, setInfo] = useState<ReferralInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -44,9 +46,11 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
       setError(null);
     } catch (err) {
       const detail = err instanceof Error && err.message ? ` (${err.message})` : "";
-      setError(`Dein Einladungslink konnte nicht geladen werden. Bitte versuche es erneut.${detail}`);
+      setError(isEn
+        ? `Your referral link could not be loaded. Please try again.${detail}`
+        : `Dein Einladungslink konnte nicht geladen werden. Bitte versuche es erneut.${detail}`);
     }
-  }, []);
+  }, [isEn]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -75,7 +79,7 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError("Kopieren fehlgeschlagen - bitte markiere den Link manuell.");
+      setError(isEn ? "Copying failed - please copy the link manually." : "Kopieren fehlgeschlagen - bitte markiere den Link manuell.");
     }
   };
 
@@ -93,16 +97,16 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
           <div>
             <h3 className="text-lg font-bold text-brand-dark m-0 flex items-center gap-2">
-              <Gift className="w-5 h-5 text-primary" /> Freunde einladen
+              <Gift className="w-5 h-5 text-primary" /> {isEn ? "Invite friends" : "Freunde einladen"}
             </h3>
             <p className="text-sm text-slate-500 m-0 mt-1">
-              Werbe 10 Personen und erhalte 1 Jahr Premium gratis.
+              {isEn ? "Refer 10 people and get 1 year of Premium for free." : "Werbe 10 Personen und erhalte 1 Jahr Premium gratis."}
             </p>
           </div>
           <button
             onClick={onClose}
             className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-muted hover:bg-slate-200 transition-colors text-sm"
-            title="Schließen"
+            title={isEn ? "Close" : "Schließen"}
           >
             ✕
           </button>
@@ -125,21 +129,23 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
                   className="px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-hover transition-colors flex items-center gap-2 shrink-0"
                 >
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? "Kopiert" : "Kopieren"}
+                  {copied ? (isEn ? "Copied" : "Kopiert") : (isEn ? "Copy" : "Kopieren")}
                 </button>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-600 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span>
-                    Bisher geworben:{" "}
+                    {isEn ? "Referred so far:" : "Bisher geworben:"}{" "}
                     <strong className="text-brand-dark">
                       {info.referralCount} / {info.rewardThreshold}
                     </strong>
                   </span>
                   {!info.rewardGranted && info.referralCount < info.rewardThreshold && (
                     <span className="text-xs text-slate-400">
-                      noch {info.rewardThreshold - info.referralCount} bis zur Prämie
+                      {isEn
+                        ? `${info.rewardThreshold - info.referralCount} more until reward`
+                        : `noch ${info.rewardThreshold - info.referralCount} bis zur Prämie`}
                     </span>
                   )}
                 </div>
@@ -151,24 +157,29 @@ export function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
                 </div>
                 {rewardActive && info.premiumUntil ? (
                   <span className="text-emerald-700 font-semibold">
-                    ★ Deine Prämie ist aktiv - Premium bis {formatDate(info.premiumUntil)}.
+                    ★ {isEn ? "Your reward is active" : "Deine Prämie ist aktiv"} - Premium {isEn ? "until" : "bis"} {formatDate(info.premiumUntil, locale)}.
                   </span>
                 ) : info.rewardGranted ? (
-                  <span>Deine Prämie wurde bereits eingelöst.</span>
+                  <span>{isEn ? "Your reward has already been redeemed." : "Deine Prämie wurde bereits eingelöst."}</span>
                 ) : (
                   <span>
-                    Registrieren sich {info.rewardThreshold} Personen über deinen Link, erhältst du{" "}
-                    <strong className="text-brand-dark">1 Jahr Premium</strong> - werbefrei inkl. Inkognito-Modus.
+                    {isEn
+                      ? `${info.rewardThreshold} people who sign up through your link unlock `
+                      : `Registrieren sich ${info.rewardThreshold} Personen über deinen Link, erhältst du `}
+                    <strong className="text-brand-dark">{isEn ? "1 year of Premium" : "1 Jahr Premium"}</strong>
+                    {isEn ? " - ad-free incl. Incognito mode." : " - werbefrei inkl. Inkognito-Modus."}
                   </span>
                 )}
               </div>
             </>
           )}
 
-          {!info && !error && <p className="text-sm text-slate-500 m-0">Lade Einladungslink …</p>}
+          {!info && !error && <p className="text-sm text-slate-500 m-0">{isEn ? "Loading referral link ..." : "Lade Einladungslink …"}</p>}
 
           <p className="text-[11px] text-slate-400 m-0 text-center">
-            Gilt nur für neu registrierte Nutzer · Prämie wird einmalig gutgeschrieben
+            {isEn
+              ? "Applies only to newly registered users · reward is credited once"
+              : "Gilt nur für neu registrierte Nutzer · Prämie wird einmalig gutgeschrieben"}
           </p>
         </div>
       </div>

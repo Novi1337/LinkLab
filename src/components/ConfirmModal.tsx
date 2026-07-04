@@ -7,11 +7,13 @@ interface ConfirmModalProps {
   title: string;
   message?: string;
   confirmLabel?: string;
+  locale?: "de" | "en";
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export function ConfirmModal({ isOpen, title, message, confirmLabel = "Löschen", onConfirm, onCancel }: ConfirmModalProps) {
+export function ConfirmModal({ isOpen, title, message, confirmLabel, locale = "de", onConfirm, onCancel }: ConfirmModalProps) {
+  const defaultConfirm = confirmLabel ?? (locale === "en" ? "Delete" : "Löschen");
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -45,14 +47,14 @@ export function ConfirmModal({ isOpen, title, message, confirmLabel = "Löschen"
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-brand-dark hover:bg-slate-200 rounded-lg transition-colors"
           >
-            Abbrechen
+            {locale === "en" ? "Cancel" : "Abbrechen"}
           </button>
           <button
             ref={confirmButtonRef}
             onClick={onConfirm}
             className="px-5 py-2 text-sm font-bold text-white bg-danger hover:opacity-90 rounded-lg shadow-md transition-colors"
           >
-            {confirmLabel}
+            {defaultConfirm}
           </button>
         </div>
       </div>

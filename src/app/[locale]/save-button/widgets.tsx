@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
  * Code-Snippet mit Kopieren-Button sowie das Bookmarklet.
  */
 
-export function CodeSnippet({ code }: { code: string }) {
+export function CodeSnippet({ code, locale = "de" }: { code: string; locale?: "de" | "en" }) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -30,13 +30,13 @@ export function CodeSnippet({ code }: { code: string }) {
         onClick={copy}
         className="absolute top-3 right-3 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
       >
-        {copied ? "Kopiert ✓" : "Kopieren"}
+        {copied ? (locale === "en" ? "Copied ✓" : "Kopiert ✓") : (locale === "en" ? "Copy" : "Kopieren")}
       </button>
     </div>
   );
 }
 
-export function BookmarkletLink() {
+export function BookmarkletLink({ locale = "de" }: { locale?: "de" | "en" }) {
   const ref = useRef<HTMLAnchorElement>(null);
 
   // React blockiert javascript:-URLs in JSX-Attributen, daher wird das
@@ -54,11 +54,11 @@ export function BookmarkletLink() {
     <a
       ref={ref}
       onClick={(e) => e.preventDefault()}
-      title="Ziehe mich in deine Lesezeichenleiste"
+      title={locale === "en" ? "Drag me to your bookmarks bar" : "Ziehe mich in deine Lesezeichenleiste"}
       className="inline-flex items-center gap-2 bg-white border border-slate-200 text-brand-dark px-5 py-3 rounded-xl font-bold shadow-sm hover:shadow-md transition-all cursor-grab select-none"
     >
       <img src="/Favicon.svg" alt="" className="w-5 h-5" />
-      Auf LinkLib speichern
+      {locale === "en" ? "Save to LinkLib" : "Auf LinkLib speichern"}
     </a>
   );
 }

@@ -6,11 +6,12 @@ interface PromptModalProps {
   isOpen: boolean;
   title: string;
   initialValue?: string;
+  locale?: "de" | "en";
   onConfirm: (val: string) => void;
   onCancel: () => void;
 }
 
-export function PromptModal({ isOpen, title, initialValue = "", onConfirm, onCancel }: PromptModalProps) {
+export function PromptModal({ isOpen, title, initialValue = "", locale = "de", onConfirm, onCancel }: PromptModalProps) {
   const [value, setValue] = useState(initialValue);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -57,13 +58,13 @@ export function PromptModal({ isOpen, title, initialValue = "", onConfirm, onCan
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-brand-dark hover:bg-slate-200 rounded-lg transition-colors"
           >
-            Abbrechen
+            {locale === "en" ? "Cancel" : "Abbrechen"}
           </button>
           <button 
             onClick={() => onConfirm(value)}
             className="px-5 py-2 text-sm font-bold text-white bg-primary hover:bg-primary-hover rounded-lg shadow-md transition-colors"
           >
-            Speichern
+            {locale === "en" ? "Save" : "Speichern"}
           </button>
         </div>
       </div>

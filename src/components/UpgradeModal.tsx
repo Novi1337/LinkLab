@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { localizePath } from "@/lib/locale";
 
 type Plan = "premium" | "premium_plus" | "lifetime";
 
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  locale?: "de" | "en";
 }
 
 // Anzeige-Infos der Pläne. Die echten Preise/Price-IDs liegen ausschließlich
@@ -37,7 +39,34 @@ const PLANS: { id: Plan; name: string; price: string; hint: string; features: st
   },
 ];
 
-export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
+export function UpgradeModal({ isOpen, onClose, locale = "de" }: UpgradeModalProps) {
+  const isEn = locale === "en";
+  const plans = isEn
+    ? [
+        {
+          id: "premium" as const,
+          name: "Premium",
+          price: "12 EUR",
+          hint: "per year, cancel anytime",
+          features: ["Unlimited tabs, sections and subsections", "Completely ad-free"],
+        },
+        {
+          id: "premium_plus" as const,
+          name: "Premium+",
+          price: "24 EUR",
+          hint: "per year, cancel anytime",
+          features: ["Everything in Premium", "Incognito mode: private password-protected tabs"],
+          highlight: true,
+        },
+        {
+          id: "lifetime" as const,
+          name: "Lifetime",
+          price: "69 EUR",
+          hint: "one-time, forever",
+          features: ["All Premium+ features including Incognito", "Pay once, use forever"],
+        },
+      ]
+    : PLANS;
   const [loadingPlan, setLoadingPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +78,7 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      if (!token) throw new Error("Nicht angemeldet");
+      if (!token) throw new Error(isEn ? "Not logged in" : "Nicht angemeldet");
 
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -57,12 +86,12 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
         body: JSON.stringify({ plan }),
       });
       const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error || "Checkout fehlgeschlagen");
+      if (!res.ok || !data.url) throw new Error(data.error || (isEn ? "Checkout failed" : "Checkout fehlgeschlagen"));
 
       // Weiterleitung zur gehosteten Stripe-Checkout-Seite
       window.location.assign(data.url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unbekannter Fehler");
+      setError(err instanceof Error ? err.message : (isEn ? "Unknown error" : "Unbekannter Fehler"));
       setLoadingPlan(null);
     }
   };
@@ -80,19 +109,19 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
           <div>
             <h3 className="text-lg font-bold text-brand-dark m-0">LinkLib Premium</h3>
-            <p className="text-sm text-slate-500 m-0 mt-1">Werbefrei und unbegrenzt - mit Premium+ inklusive Inkognito-Modus.</p>
+            <p className="text-sm text-slate-500 m-0 mt-1">{isEn ? "Ad-free and unlimited, with Incognito mode included in Premium+." : "Werbefrei und unbegrenzt - mit Premium+ inklusive Inkognito-Modus."}</p>
           </div>
           <button
             onClick={onClose}
             className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-muted hover:bg-slate-200 transition-colors text-sm"
-            title="Schließen"
+            title={isEn ? "Close" : "Schließen"}
           >
             ✕
           </button>
         </div>
 
         <div className="px-6 py-5 flex flex-col gap-3">
-          {PLANS.map((plan) => (
+          {plans.map((plan) => (
             <button
               key={plan.id}
               onClick={() => startCheckout(plan.id)}
@@ -106,7 +135,7 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
                   {plan.name}
                   {plan.highlight && (
                     <span className="text-[10px] font-black uppercase tracking-wider text-white bg-primary rounded-full px-2 py-0.5">
-                      Beliebt
+                      {isEn ? "Popular" : "Beliebt"}
                     </span>
                   )}
                 </div>
@@ -121,7 +150,7 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
                 </ul>
               </div>
               <div className="font-bold text-primary whitespace-nowrap">
-                {loadingPlan === plan.id ? "Lädt…" : plan.price}
+                {loadingPlan === plan.id ? (isEn ? "Loading..." : "Lädt…") : plan.price}
               </div>
             </button>
           ))}
@@ -129,14 +158,25 @@ export function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
           {error && <p className="text-sm text-danger m-0">{error}</p>}
 
           <p className="text-[11px] text-slate-400 m-0 mt-1 text-center leading-relaxed">
-            Sichere Zahlung über Stripe · Abos jederzeit kündbar
+            {isEn ? "Secure payment via Stripe · Subscriptions can be canceled anytime" : "Sichere Zahlung über Stripe · Abos jederzeit kündbar"}
             <br />
-            Mit dem Kauf akzeptierst du die{" "}
-            <a href="/agb" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">AGB</a>{" "}
-            und verlangst ausdrücklich, dass die Premium-Funktionen sofort – vor Ablauf der
-            Widerrufsfrist – freigeschaltet werden. Dir ist bekannt, dass dein{" "}
-            <a href="/widerruf" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Widerrufsrecht</a>{" "}
-            damit nach Maßgabe der gesetzlichen Regelungen erlischt.
+            {isEn ? (
+              <>
+                By purchasing, you accept the <a href={localizePath("/agb", locale)} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Terms</a>{" "}
+                and explicitly request immediate activation of Premium features before the withdrawal period ends. You acknowledge that your{" "}
+                <a href={localizePath("/widerruf", locale)} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">right of withdrawal</a>{" "}
+                may expire according to applicable law.
+              </>
+            ) : (
+              <>
+                Mit dem Kauf akzeptierst du die{" "}
+                <a href={localizePath("/agb", locale)} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">AGB</a>{" "}
+                und verlangst ausdrücklich, dass die Premium-Funktionen sofort – vor Ablauf der
+                Widerrufsfrist – freigeschaltet werden. Dir ist bekannt, dass dein{" "}
+                <a href={localizePath("/widerruf", locale)} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Widerrufsrecht</a>{" "}
+                damit nach Maßgabe der gesetzlichen Regelungen erlischt.
+              </>
+            )}
           </p>
         </div>
       </div>

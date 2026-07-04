@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { CookieConsent } from "./cookie-consent";
 import { AdSense } from "@/components/AdSense";
 import "./globals.css";
+import type { AppLocale } from "@/lib/locale";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -58,7 +59,7 @@ export const metadata: Metadata = {
 };
 
 // Strukturierte Daten für Google Rich Results (Schema.org)
-const jsonLd = {
+const baseJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
   name: "LinkLib",
@@ -75,17 +76,30 @@ const jsonLd = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
+  params,
 }: Readonly<{
   children: React.ReactNode;
+  params: Promise<{ locale: AppLocale }>;
 }>) {
+  const { locale } = await params;
+
+  const jsonLd = {
+    ...baseJsonLd,
+    inLanguage: locale,
+    description:
+      locale === "en"
+        ? "Organize, save, and manage your favorite websites, bookmarks, and links in a clean cloud library."
+        : baseJsonLd.description,
+  };
+
   // Ersetze diese ID später durch deine eigene von Google AdSense
   const adSensePublisherId = process.env.NEXT_PUBLIC_ADSENSE_ID || "ca-pub-XXXXXXXXXXXXX";
 
   return (
     <html
-      lang="de"
+      lang={locale}
       className={`${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
