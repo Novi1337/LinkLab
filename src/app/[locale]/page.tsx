@@ -34,6 +34,7 @@ type Section = {
   parent_id: string | null;
   tab_id: string | null;
   color: string | null;
+  shared_from_label?: string | null;
   links: Link[];
   subSections: Section[];
 };
@@ -43,6 +44,7 @@ type Tab = {
   name: string;
   color?: string | null;
   is_private?: boolean;
+  shared_from_label?: string | null;
 };
 
 // Kuratierte Akzentfarben, mit denen Nutzer einzelne Tabs/Sektionen markieren können,
@@ -888,6 +890,11 @@ export default function Home() {
             </div>
             <h3 className={`${depth > 0 ? "text-base font-semibold text-brand-dark" : "text-lg font-semibold text-brand-dark"} m-0 flex items-center gap-2 group/heading cursor-pointer`} onClick={() => renameSection(section.id, section.name)} title={t.clickToEdit}>
               {section.name}
+              {section.shared_from_label && (
+                <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full">
+                  {section.shared_from_label}
+                </span>
+              )}
               <Edit2 className="w-4 h-4 text-slate-300 opacity-0 group-hover/heading:opacity-100 transition-opacity" />
             </h3>
           </div>
@@ -1178,6 +1185,11 @@ export default function Home() {
                   style={{ backgroundColor: tab.color || "transparent" }}
                 />
                 {tab.name}
+                {tab.shared_from_label && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full">
+                    {tab.shared_from_label}
+                  </span>
+                )}
                 {incognitoUnlocked && (
                   <span
                     role="button"

@@ -20,6 +20,7 @@ type TabRow = {
   name: string;
   color: string | null;
   is_private: boolean;
+  shared_from_label?: string | null;
 };
 
 type SectionRow = {
@@ -29,6 +30,7 @@ type SectionRow = {
   parent_id: string | null;
   tab_id: string | null;
   color: string | null;
+  shared_from_label?: string | null;
 };
 
 type LinkRow = {
@@ -97,8 +99,9 @@ async function cloneSectionsAndLinks(params: {
   sourceLinks: LinkRow[];
   targetTabId: string;
   rootSourceSectionIds: string[];
+  sharedFromLabel: string;
 }): Promise<void> {
-  const { admin, recipientUserId, sourceSections, sourceLinks, targetTabId, rootSourceSectionIds } = params;
+  const { admin, recipientUserId, sourceSections, sourceLinks, targetTabId, rootSourceSectionIds, sharedFromLabel } = params;
 
   const byParent = new Map<string | null, SectionRow[]>();
   for (const section of sourceSections) {
@@ -117,6 +120,7 @@ async function cloneSectionsAndLinks(params: {
         user_id: recipientUserId,
         name: sourceSection.name,
         color: sourceSection.color,
+        shared_from_label: sharedFromLabel,
         parent_id: newParentId,
         tab_id: targetTabId,
       })
@@ -171,8 +175,9 @@ async function redeemSharedTab(params: {
   ownerUserId: string;
   recipientUserId: string;
   sourceTabId: string;
+  sharedFromLabel: string;
 }): Promise<string> {
-  const { admin, ownerUserId, recipientUserId, sourceTabId } = params;
+  const { admin, ownerUserId, recipientUserId, sourceTabId, sharedFromLabel } = params;
 
   const { data: sourceTab } = await admin
     .from("tabs")
@@ -221,6 +226,7 @@ async function redeemSharedTab(params: {
       user_id: recipientUserId,
       name: `${sourceTabRow.name} (geteilt)`,
       color: sourceTabRow.color,
+      shared_from_label: sharedFromLabel,
       is_private: false,
     })
     .select("id")
@@ -238,6 +244,7 @@ async function redeemSharedTab(params: {
     sourceLinks: sourceLinks || [],
     targetTabId: targetTab.id,
     rootSourceSectionIds: rootIds,
+    sharedFromLabel,
   });
 
   return targetTab.id;
@@ -248,8 +255,9 @@ async function redeemSharedSection(params: {
   ownerUserId: string;
   recipientUserId: string;
   sourceSectionId: string;
+  sharedFromLabel: string;
 }): Promise<string> {
-  const { admin, ownerUserId, recipientUserId, sourceSectionId } = params;
+  const { admin, ownerUserId, recipientUserId, sourceSectionId, sharedFromLabel } = params;
 
   const { data: allSections, error: allSectionsError } = await admin
     .from("sections")
@@ -290,6 +298,7 @@ async function redeemSharedSection(params: {
     sourceLinks: sourceLinks || [],
     targetTabId,
     rootSourceSectionIds: [sourceSectionId],
+    sharedFromLabel,
   });
 
   return targetTabId;
@@ -335,6 +344,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Eigene Share-Links können nicht eingelöst werden" }, { status: 400 });
   }
 
+  const { data: ownerUser } = await admin.auth.admin.getUserById(shareTokenRow.owner_user_id);
+  const ownerEmail = ownerUser.user?.email?.trim() || null;
+  const sharedFromLabel = ownerEmail ? `Geteilt von ${ownerEmail}` : "Geteilt";
+
   const { data: existingRedemption } = await admin
     .from("share_redemptions")
     .select("token")
@@ -358,6 +371,7 @@ export async function POST(request: Request) {
         ownerUserId: shareTokenRow.owner_user_id,
         recipientUserId: user.id,
         sourceTabId: shareTokenRow.source_tab_id,
+        sharedFromLabel,
       });
     } else if (shareTokenRow.resource_type === "section") {
       if (!shareTokenRow.source_section_id) {
@@ -368,6 +382,7 @@ export async function POST(request: Request) {
         ownerUserId: shareTokenRow.owner_user_id,
         recipientUserId: user.id,
         sourceSectionId: shareTokenRow.source_section_id,
+        sharedFromLabel,
       });
     } else {
       return NextResponse.json({ error: "Unbekannter Share-Typ" }, { status: 400 });

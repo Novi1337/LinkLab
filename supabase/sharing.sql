@@ -24,6 +24,12 @@ create table if not exists public.share_redemptions (
 
 create index if not exists share_redemptions_recipient_user_id_idx on public.share_redemptions (recipient_user_id);
 
+alter table public.tabs
+  add column if not exists shared_from_label text;
+
+alter table public.sections
+  add column if not exists shared_from_label text;
+
 -- Share-Tabellen sind nur über Server-Endpunkte erreichbar.
 -- Service-Role-Key umgeht RLS; für Client-Zugriffe werden keine Policies vergeben.
 alter table public.share_tokens enable row level security;
