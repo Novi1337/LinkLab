@@ -355,7 +355,14 @@ export async function POST(request: Request) {
 
   const { data: ownerUser } = await admin.auth.admin.getUserById(shareTokenRow.owner_user_id);
   const ownerEmail = ownerUser.user?.email?.trim() || null;
-  const sharedFromLabel = ownerEmail ? `Geteilt von ${ownerEmail}` : "Geteilt";
+  const { data: ownerProfile } = await admin
+    .from("profiles")
+    .select("share_nickname")
+    .eq("id", shareTokenRow.owner_user_id)
+    .maybeSingle();
+  const ownerNickname = ownerProfile?.share_nickname?.trim() || null;
+  const sharedBy = ownerNickname || ownerEmail;
+  const sharedFromLabel = sharedBy ? `Geteilt von ${sharedBy}` : "Geteilt";
 
   // Einlösung ZUERST atomar registrieren (Primary Key = token + Empfänger):
   // Parallele Requests desselben Nutzers können so nicht doppelt klonen -

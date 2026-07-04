@@ -27,6 +27,8 @@ const PLAN_LABELS: Record<string, string> = {
   lifetime: "Premium – Lifetime",
 };
 
+const MAX_NICKNAME_LENGTH = 32;
+
 function formatDate(iso: string, locale: "de" | "en"): string {
   return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "de-DE", { day: "2-digit", month: "long", year: "numeric" });
 }
@@ -49,6 +51,12 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
   const [subError, setSubError] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+
+  // Nickname für Share-Label (z. B. "Geteilt von Max" statt voller E-Mail)
+  const [nickname, setNickname] = useState("");
+  const [nicknameLoading, setNicknameLoading] = useState(true);
+  const [nicknameBusy, setNicknameBusy] = useState(false);
+  const [nicknameMessage, setNicknameMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Passwort-Zustand (nur für Nutzer mit Email/Passwort-Login relevant)
   const [hasPasswordLogin, setHasPasswordLogin] = useState(false);
@@ -76,18 +84,38 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
     }
   }, [isEn]);
 
+  const loadNickname = useCallback(async () => {
+    try {
+      const res = await fetch("/api/account/nickname", { headers: await authHeader() });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setNickname(data?.nickname || "");
+      setNicknameMessage(null);
+    } catch {
+      setNicknameMessage({
+        type: "error",
+        text: isEn ? "Nickname could not be loaded." : "Nickname konnte nicht geladen werden.",
+      });
+    } finally {
+      setNicknameLoading(false);
+    }
+  }, [isEn]);
+
   useEffect(() => {
     if (!isOpen) return;
     // Daten beim Öffnen laden - via setTimeout(0) entkoppelt, damit kein setState
     // synchron im Effect-Body läuft (react-hooks/set-state-in-effect).
     const t = setTimeout(() => {
+      setSubLoading(true);
+      setNicknameLoading(true);
       loadSubscription();
+      loadNickname();
       supabase.auth.getUser().then(({ data }) => {
         setHasPasswordLogin(Boolean(data.user?.identities?.some((i) => i.provider === "email")));
       });
     }, 0);
     return () => clearTimeout(t);
-  }, [isOpen, loadSubscription]);
+  }, [isOpen, loadSubscription, loadNickname]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -150,6 +178,45 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
     }
   };
 
+  const saveNickname = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNicknameMessage(null);
+
+    const trimmed = nickname.replace(/\s+/g, " ").trim();
+    if (trimmed.length > MAX_NICKNAME_LENGTH) {
+      setNicknameMessage({
+        type: "error",
+        text: isEn
+          ? `Nickname may contain up to ${MAX_NICKNAME_LENGTH} characters.`
+          : `Der Nickname darf maximal ${MAX_NICKNAME_LENGTH} Zeichen enthalten.`,
+      });
+      return;
+    }
+
+    setNicknameBusy(true);
+    try {
+      const res = await fetch("/api/account/nickname", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeader()) },
+        body: JSON.stringify({ nickname: trimmed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "save_failed");
+      setNickname(data?.nickname || "");
+      setNicknameMessage({
+        type: "success",
+        text: isEn ? "Nickname saved." : "Nickname gespeichert.",
+      });
+    } catch {
+      setNicknameMessage({
+        type: "error",
+        text: isEn ? "Nickname could not be saved." : "Nickname konnte nicht gespeichert werden.",
+      });
+    } finally {
+      setNicknameBusy(false);
+    }
+  };
+
   const deleteAccount = async () => {
     setDeleteBusy(true);
     setDeleteError("");
@@ -195,6 +262,47 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
         </div>
 
         <div className="px-6 py-5 flex flex-col gap-6">
+          {/* ---- Nickname für geteilte Inhalte ---- */}
+          <section>
+            <h4 className="flex items-center gap-2 text-sm font-bold text-brand-dark uppercase tracking-wide mb-3">
+              {isEn ? "Sharing name" : "Sharing-Name"}
+            </h4>
+            {nicknameLoading ? (
+              <p className="text-sm text-slate-500 m-0">{isEn ? "Loading ..." : "Lade ..."}</p>
+            ) : (
+              <form onSubmit={saveNickname} className="flex flex-col gap-3">
+                <p className="text-sm text-slate-500 m-0">
+                  {isEn
+                    ? "This name is shown in shared tabs and sections (instead of your email)."
+                    : "Dieser Name wird in geteilten Reitern und Abschnitten angezeigt (statt deiner E-Mail)."}
+                </p>
+                <input
+                  type="text"
+                  placeholder={isEn ? "for example Max" : "z. B. Max"}
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  maxLength={MAX_NICKNAME_LENGTH}
+                  className="p-3 rounded-xl border border-slate-200 outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all bg-slate-50/50 focus:bg-white text-brand-dark text-sm"
+                />
+                <p className="text-xs text-slate-400 m-0">
+                  {nickname.trim().length}/{MAX_NICKNAME_LENGTH}
+                </p>
+                {nicknameMessage && (
+                  <p className={`text-sm m-0 ${nicknameMessage.type === "success" ? "text-emerald-600" : "text-danger"}`}>
+                    {nicknameMessage.text}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={nicknameBusy}
+                  className="self-start px-4 py-2 text-sm font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {nicknameBusy ? (isEn ? "Saving ..." : "Wird gespeichert ...") : (isEn ? "Save name" : "Namen speichern")}
+                </button>
+              </form>
+            )}
+          </section>
+
           {/* ---- Abo & Zahlungsplan ---- */}
           <section>
             <h4 className="flex items-center gap-2 text-sm font-bold text-brand-dark uppercase tracking-wide mb-3">

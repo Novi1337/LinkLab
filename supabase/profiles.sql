@@ -6,9 +6,13 @@ create table if not exists public.profiles (
   stripe_customer_id text unique,
   stripe_subscription_id text,
   premium_plan text check (premium_plan in ('premium', 'premium_plus', 'lifetime')),
+  share_nickname text,
   premium_since timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.profiles
+  add column if not exists share_nickname text;
 
 alter table public.profiles enable row level security;
 
