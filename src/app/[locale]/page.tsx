@@ -1198,14 +1198,14 @@ export default function Home() {
                 }`}
                 style={activeTabId === tab.id && tab.color ? { borderColor: tab.color, color: tab.color } : undefined}
               >
-                <div className="flex items-center gap-1 opacity-0 group-hover/tab:opacity-100 transition-opacity w-full justify-start">
+                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover/tab:opacity-100 transition-opacity w-full justify-start">
                   {incognitoUnlocked && (
                     <span
                       role="button"
                       tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); toggleTabPrivacy(tab); }}
                       title={tab.is_private ? t.makePublicTitle : t.makePrivateTitle}
-                      className={`transition-opacity ${tab.is_private ? "opacity-100 text-slate-600 hover:text-brand-dark" : "opacity-0 group-hover/tab:opacity-100 text-slate-300 hover:text-slate-600"}`}
+                      className={`transition-opacity ${tab.is_private ? "opacity-100 text-slate-600 hover:text-brand-dark" : "opacity-100 sm:opacity-0 sm:group-hover/tab:opacity-100 text-slate-300 hover:text-slate-600"}`}
                     >
                       {tab.is_private ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </span>
