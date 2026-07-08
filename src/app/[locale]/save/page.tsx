@@ -78,7 +78,7 @@ function SaveWidget() {
   // keine Passwort-Abfrage für den Inkognito-Modus enthält.
   const loadTargets = useCallback(async () => {
     const [{ data: tabsData }, { data: sectionsData }, { data: linksData }, { data: sessionData }] = await Promise.all([
-      supabase.from("tabs").select("id, name, is_private").order("created_at", { ascending: true }),
+      supabase.from("tabs").select("id, name, is_private").order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
       supabase.from("sections").select("id, name, parent_id, tab_id").order("created_at", { ascending: true }),
       supabase.from("links").select("id, section_id"),
       supabase.auth.getSession(),

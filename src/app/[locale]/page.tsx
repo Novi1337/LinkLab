@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { ReactSortable } from "react-sortablejs";
 import { supabase } from "@/lib/supabaseClient";
@@ -48,6 +48,7 @@ type Tab = {
   name: string;
   color?: string | null;
   is_private?: boolean;
+  position?: number | null;
   shared_from_label?: string | null;
   shared_from_email?: string | null;
   shared_from_handle?: string | null;
@@ -224,6 +225,7 @@ export default function Home() {
     referralPremiumUntil: isEn ? "Premium via referrals until " : "Premium über Empfehlungsprogramm bis ",
     adFreeTitle: isEn ? "Ad-free with LinkLib Premium" : "Werbefrei mit LinkLib Premium",
     accountTitle: isEn ? "Manage account (subscription, password, deletion)" : "Konto verwalten (Abo, Passwort, Löschung)",
+    menu: isEn ? "Menu" : "Menü",
     logout: isEn ? "Log out" : "Logout",
     nudge10Message: isEn
       ? "Your digital brain is growing! You've saved 10 important links. Share LinkLib with a friend: you both get 1 month of Premium as a gift."
@@ -267,6 +269,11 @@ export default function Home() {
   const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({});
   const [activeLinkForm, setActiveLinkForm] = useState<string | null>(null);
   const [colorPickerOpenId, setColorPickerOpenId] = useState<string | null>(null);
+  // Verhindert mehrfach-parallele Initial-Loads durch wiederholte Auth-Events
+  // (Ursache für gelegentlich doppelt angelegte "Startseite"-Reiter beim Login).
+  const initialLoadDone = useRef(false);
+  // Zweite Verteidigungslinie direkt am Insert der Initial-Tab-Erstellung.
+  const creatingInitialTab = useRef(false);
   const [tabEditModal, setTabEditModal] = useState<{
     isOpen: boolean;
     tabId: string | null;
@@ -354,6 +361,19 @@ export default function Home() {
       else normal++;
     }
     setLinkCounts({ normal, private: priv });
+  }, []);
+
+  // Zählt die Links eines bestimmten Reiters direkt in der DB - der sections-State
+  // enthält nur den aktiven Reiter und reicht dafür nicht aus.
+  const countLinksInTab = useCallback(async (tabId: string): Promise<number> => {
+    const { data: secs } = await supabase.from("sections").select("id").eq("tab_id", tabId);
+    const ids = (secs || []).map((s) => s.id);
+    if (ids.length === 0) return 0;
+    const { count } = await supabase
+      .from("links")
+      .select("id", { count: "exact", head: true })
+      .in("section_id", ids);
+    return count ?? 0;
   }, []);
 
   // Referral-Link (?ref=CODE): Code lokal merken, damit er nach der Registrierung
@@ -512,26 +532,37 @@ export default function Home() {
   };
 
   const fetchData = useCallback(async (tabIdToLoad: string | null) => {
-    // 1. Fetch Tabs
-    const { data: tabsData } = await supabase.from("tabs").select("*").order("created_at", { ascending: true });
+    // 1. Fetch Tabs (Reihenfolge: manuell sortierte Position, Alt-Daten nach created_at)
+    const { data: tabsData } = await supabase
+      .from("tabs")
+      .select("*")
+      .order("position", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: true });
     
     let currentTabs = tabsData || [];
     let loadTab = tabIdToLoad;
 
-    // Create Initial Tab if Empty
-    if (currentTabs.length === 0) {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session) {
-        const { data: newTab } = await supabase
-          .from("tabs")
-          .insert([{ name: window.location.pathname.startsWith("/en") ? "Home" : "Startseite", user_id: sessionData.session.user.id }])
-          .select();
-        
-        if (newTab && newTab.length > 0) {
-          currentTabs = newTab;
-          // Assign old sections to this new default tab
-          await supabase.from("sections").update({ tab_id: newTab[0].id }).is("tab_id", null);
+    // Create Initial Tab if Empty. Der Ref-Guard verhindert, dass zwei parallel
+    // laufende fetchData-Aufrufe (z. B. durch schnell aufeinanderfolgende
+    // Auth-Events) beide "0 Tabs" sehen und doppelte Startseite-Reiter anlegen.
+    if (currentTabs.length === 0 && !creatingInitialTab.current) {
+      creatingInitialTab.current = true;
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session) {
+          const { data: newTab } = await supabase
+            .from("tabs")
+            .insert([{ name: window.location.pathname.startsWith("/en") ? "Home" : "Startseite", user_id: sessionData.session.user.id, position: 0 }])
+            .select();
+          
+          if (newTab && newTab.length > 0) {
+            currentTabs = newTab;
+            // Assign old sections to this new default tab
+            await supabase.from("sections").update({ tab_id: newTab[0].id }).is("tab_id", null);
+          }
         }
+      } finally {
+        creatingInitialTab.current = false;
       }
     }
 
@@ -641,19 +672,25 @@ export default function Home() {
       }
     };
 
-    // onAuthStateChange feuert beim Registrieren sofort mit der aktuellen Session (Event "INITIAL_SESSION"),
-    // ein zusätzlicher separater getSession()-Aufruf hier würde fetchData() doppelt und parallel auslösen
-    // (Race Condition: doppelter "Startseite"-Tab für neue Nutzer).
+    // onAuthStateChange feuert mehrfach (INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED, ...).
+    // Ohne Guard liefe fetchData() dann mehrfach parallel - zwei parallele Läufe sehen
+    // beide "0 Tabs" und legen jeweils einen "Startseite"-Tab an (doppelter Reiter beim
+    // Einloggen). Der Ref stellt sicher, dass die Initialisierung nur einmal pro
+    // Login-Lebenszyklus läuft; beim Logout wird er zurückgesetzt.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setIsLoggedIn(true);
         setUserEmail(session.user.email || "");
-        fetchData(null);
-        fetchPremiumStatus();
-        fetchLinkCounts();
-        redeemPendingReferral(session.access_token);
-        redeemPendingShare(session.access_token);
+        if (!initialLoadDone.current) {
+          initialLoadDone.current = true;
+          fetchData(null);
+          fetchPremiumStatus();
+          fetchLinkCounts();
+          redeemPendingReferral(session.access_token);
+          redeemPendingShare(session.access_token);
+        }
       } else {
+        initialLoadDone.current = false;
         setIsLoggedIn(false);
         setUserEmail("");
         setSections([]);
@@ -681,11 +718,31 @@ export default function Home() {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) return;
       
-      const { data } = await supabase.from("tabs").insert([{ name: name.trim(), user_id: sessionData.session.user.id }]).select();
+      const { data } = await supabase
+        .from("tabs")
+        .insert([{ name: name.trim(), user_id: sessionData.session.user.id, position: tabs.length }])
+        .select();
       if (data && data.length > 0) {
         setTabs(prev => [...prev, data[0]]);
         fetchData(data[0].id);
       }
+    });
+  };
+
+  // Drag & Drop-Sortierung der Reiter: mappt die neue Reihenfolge der sichtbaren
+  // Tabs zurück auf die Gesamtliste (versteckte private Reiter behalten ihre Slots)
+  // und persistiert die Positionen.
+  const reorderTabs = (newVisible: Tab[]) => {
+    const isVisible = (tab: Tab) => !tab.is_private || incognitoUnlocked;
+    const currentVisibleIds = tabs.filter(isVisible).map(tab => tab.id).join(",");
+    const newIds = newVisible.map(tab => tab.id).join(",");
+    if (currentVisibleIds === newIds) return; // keine Änderung (z. B. Mount-Event)
+
+    let vi = 0;
+    const next = tabs.map(tab => (isVisible(tab) ? newVisible[vi++] : tab));
+    setTabs(next);
+    next.forEach((tab, index) => {
+      supabase.from("tabs").update({ position: index }).eq("id", tab.id).then();
     });
   };
 
@@ -722,11 +779,45 @@ export default function Home() {
     });
   };
 
-  // Inkognito: Reiter privat/öffentlich schalten (nur im entsperrten Modus bedienbar)
+  // Inkognito: Reiter privat/öffentlich schalten (nur im entsperrten Modus bedienbar).
+  // Beim Umschalten wechseln ALLE Links des Reiters die Limit-Kategorie - der
+  // DB-Trigger (trg_enforce_tab_privacy_limit) lehnt das ab, wenn dadurch das
+  // Free-Limit der Zielkategorie überschritten würde. Hier: Vorab-Check für
+  // sofortiges Feedback + Rollback des optimistischen Updates im Fehlerfall.
   const toggleTabPrivacy = async (tab: Tab) => {
     const newValue = !tab.is_private;
+
+    if (!isPremium) {
+      const movingCount = await countLinksInTab(tab.id);
+      const targetLimit = newValue ? PRIVATE_LINK_LIMIT : NORMAL_LINK_LIMIT;
+      const existingTarget = newValue ? linkCounts.private : linkCounts.normal;
+      if (existingTarget + movingCount > targetLimit) {
+        openConfirm(
+          newValue ? t.privateLinkLimitTitle : t.linkLimitTitle,
+          newValue ? t.privateLinkLimitMessage : t.linkLimitMessage,
+          () => { closeConfirm(); setUpgradeModalOpen(true); },
+          t.upgrade
+        );
+        return;
+      }
+    }
+
     setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, is_private: newValue } : t));
-    await supabase.from("tabs").update({ is_private: newValue }).eq("id", tab.id);
+    const { error } = await supabase.from("tabs").update({ is_private: newValue }).eq("id", tab.id);
+    if (error) {
+      // Trigger hat abgelehnt (z. B. Race Condition) -> optimistisches Update zurücknehmen
+      setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, is_private: !newValue } : t));
+      if (error.message?.includes("LINK_LIMIT_REACHED")) {
+        openConfirm(
+          newValue ? t.privateLinkLimitTitle : t.linkLimitTitle,
+          newValue ? t.privateLinkLimitMessage : t.linkLimitMessage,
+          () => { closeConfirm(); setUpgradeModalOpen(true); },
+          t.upgrade
+        );
+      }
+      return;
+    }
+    fetchLinkCounts();
   };
 
   // Klick auf das Auge in der Tab-Leiste: sperren bzw. entsperren.
@@ -971,8 +1062,8 @@ export default function Home() {
     openConfirm(t.deleteLinkTitle, t.deleteLinkMessage, async () => {
       closeConfirm();
       await supabase.from("links").delete().eq("id", linkId);
-      fetchData(activeTabId);
-      fetchLinkCounts();
+      await fetchData(activeTabId);
+      await fetchLinkCounts();
     });
   };
 
@@ -1085,14 +1176,34 @@ export default function Home() {
     }
   };
 
-  // Wird aufgerufen, wenn Links innerhalb einer Sektion neu sortiert ODER von einer anderen Sektion hinzugefügt werden
+  // Wird aufgerufen, wenn Links innerhalb einer Sektion neu sortiert ODER von einer anderen Sektion hinzugefügt werden.
+  // Das Umhängen (UPDATE section_id) wird vom DB-Trigger (trg_enforce_link_limit_move)
+  // gegen die Free-Limits geprüft - bei Ablehnung wird der Zustand neu geladen
+  // und das Upgrade-Popup gezeigt.
   const updateSectionLinks = (sectionId: string, newLinks: Link[]) => {
     setSections(prev => updateSectionInState(prev, sectionId, s => {
       const oldIds = new Set(s.links.map(l => l.id));
       const addedLinks = newLinks.filter(l => !oldIds.has(l.id));
       // Links, die neu in dieser Sektion gelandet sind, in der DB umhängen
       addedLinks.forEach(l => {
-        supabase.from("links").update({ section_id: sectionId }).eq("id", l.id);
+        supabase.from("links").update({ section_id: sectionId }).eq("id", l.id).then(({ error }) => {
+          if (error) {
+            // Trigger hat das Verschieben abgelehnt (Limit der Zielkategorie voll)
+            fetchData(activeTabId);
+            if (error.message?.includes("LINK_LIMIT_REACHED")) {
+              const isPrivate = error.message.includes("PRIVATE");
+              openConfirm(
+                isPrivate ? t.privateLinkLimitTitle : t.linkLimitTitle,
+                isPrivate ? t.privateLinkLimitMessage : t.linkLimitMessage,
+                () => { closeConfirm(); setUpgradeModalOpen(true); },
+                t.upgrade
+              );
+            }
+          } else {
+            // Kategorie kann sich geändert haben (normal <-> privat) -> Zähler aktualisieren
+            fetchLinkCounts();
+          }
+        });
       });
       return { ...s, links: newLinks };
     }));
@@ -1140,40 +1251,43 @@ export default function Home() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
               )}
             </button>
-            <h3 className={`${depth > 0 ? "text-base font-semibold text-brand-dark" : "text-lg font-semibold text-brand-dark"} m-0 flex items-center gap-2 group/heading cursor-pointer`} onClick={() => renameSection(section.id, section.name)} title={t.clickToEdit}>
-              {section.name}
+            <div className="flex flex-col min-w-0">
+              <h3 className={`${depth > 0 ? "text-base font-semibold text-brand-dark" : "text-lg font-semibold text-brand-dark"} m-0 flex items-center gap-2 group/heading cursor-pointer`} onClick={() => renameSection(section.id, section.name)} title={t.clickToEdit}>
+                {section.name}
+                <Edit2 className="w-4 h-4 text-slate-300 opacity-0 group-hover/heading:opacity-100 transition-opacity" />
+              </h3>
+              {/* "Geteilt von"-Label in eigener Zeile unter dem Namen, damit die Kopfzeile schmal bleibt */}
               {section.shared_from_label && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    revealSharedSender(section.shared_from_email);
-                  }}
-                  title={section.shared_from_email ? t.showSenderEmail : section.shared_from_label}
-                  className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full"
-                >
-                  {section.shared_from_label}
-                </button>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      revealSharedSender(section.shared_from_email);
+                    }}
+                    title={section.shared_from_email ? t.showSenderEmail : section.shared_from_label}
+                    className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded-full"
+                  >
+                    {section.shared_from_label}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openReportDialog({
+                        resourceType: "section",
+                        resourceId: section.id,
+                        label: `${isEn ? "Section" : "Abschnitt"}: ${section.name}`,
+                      });
+                    }}
+                    title={t.report}
+                    className="text-[9px] font-bold uppercase tracking-wider text-danger bg-red-50 px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
+                  >
+                    <Flag className="w-2.5 h-2.5" /> {t.report}
+                  </button>
+                </div>
               )}
-              {section.shared_from_label && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openReportDialog({
-                      resourceType: "section",
-                      resourceId: section.id,
-                      label: `${isEn ? "Section" : "Abschnitt"}: ${section.name}`,
-                    });
-                  }}
-                  title={t.report}
-                  className="text-[10px] font-bold uppercase tracking-wider text-danger bg-red-50 px-2 py-1 rounded-full inline-flex items-center gap-1"
-                >
-                  <Flag className="w-3 h-3" /> {t.report}
-                </button>
-              )}
-              <Edit2 className="w-4 h-4 text-slate-300 opacity-0 group-hover/heading:opacity-100 transition-opacity" />
-            </h3>
+            </div>
           </div>
           <div className="flex gap-4 items-center opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={() => setActiveLinkForm(activeLinkForm === section.id ? null : section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
@@ -1439,10 +1553,10 @@ export default function Home() {
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
           <button
             onClick={() => setAccountModalOpen(true)}
-            title={t.accountTitle}
+            title={`${userEmail} – ${t.accountTitle}`}
             className="hidden sm:inline-block font-semibold hover:text-primary transition-colors"
           >
-            {userEmail}
+            {t.menu}
           </button>
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
           <button onClick={handleLogout} className="text-slate-500 font-bold hover:text-danger transition-colors px-2">
@@ -1451,10 +1565,18 @@ export default function Home() {
         </div>
       </header>
 
-      {/* TABS Navigation */}
+      {/* TABS Navigation: Reiter scrollen links, "+" hängt hinter dem letzten Reiter,
+          das Inkognito-Auge ist fest rechts außen und wird nie hinausgeschoben. */}
       <div className="max-w-shell mx-auto px-5 mb-0">
-        <div className="flex gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar pb-[-1px] items-center pt-2">
-          {tabs.filter((tab) => !tab.is_private || incognitoUnlocked).map((tab) => (
+        <div className="flex gap-2 border-b border-slate-200 items-center pt-2">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar items-center flex-1 min-w-0">
+            <ReactSortable
+              list={tabs.filter((tab) => !tab.is_private || incognitoUnlocked)}
+              setList={reorderTabs}
+              animation={150}
+              className="flex gap-2 items-center"
+            >
+              {tabs.filter((tab) => !tab.is_private || incognitoUnlocked).map((tab) => (
             <div key={tab.id} className="relative group/tab flex items-center shrink-0">
               <button 
                 onClick={(e) => {
@@ -1517,50 +1639,53 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-2 w-full min-w-0">
                   <span className="truncate min-w-0" style={tab.color ? { color: tab.color } : undefined}>{tab.name}</span>
-                  {tab.shared_from_label && (
-                    <>
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          revealSharedSender(tab.shared_from_email);
-                        }}
-                        title={tab.shared_from_email ? t.showSenderEmail : tab.shared_from_label}
-                        className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0"
-                      >
-                        {tab.shared_from_label}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openReportDialog({
-                            resourceType: "tab",
-                            resourceId: tab.id,
-                            label: `${isEn ? "Tab" : "Reiter"}: ${tab.name}`,
-                          });
-                        }}
-                        title={t.report}
-                        className="text-[10px] font-bold uppercase tracking-wider text-danger bg-red-50 px-2 py-1 rounded-full shrink-0 inline-flex items-center gap-1"
-                      >
-                        <Flag className="w-3 h-3" /> {t.report}
-                      </button>
-                    </>
-                  )}
                 </div>
+                {/* "Geteilt von"-Label in eigener Zeile unter dem Namen, damit der Reiter schmal bleibt */}
+                {tab.shared_from_label && (
+                  <div className="flex items-center gap-1 w-full">
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        revealSharedSender(tab.shared_from_email);
+                      }}
+                      title={tab.shared_from_email ? t.showSenderEmail : tab.shared_from_label}
+                      className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0"
+                    >
+                      {tab.shared_from_label}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openReportDialog({
+                          resourceType: "tab",
+                          resourceId: tab.id,
+                          label: `${isEn ? "Tab" : "Reiter"}: ${tab.name}`,
+                        });
+                      }}
+                      title={t.report}
+                      className="text-[9px] font-bold uppercase tracking-wider text-danger bg-red-50 px-1.5 py-0.5 rounded-full shrink-0 inline-flex items-center gap-1"
+                    >
+                      <Flag className="w-2.5 h-2.5" /> {t.report}
+                    </button>
+                  </div>
+                )}
               </button>
               
             </div>
-          ))}
-          <button 
-            onClick={addTab} 
-            className="px-4 py-3 font-black text-nav text-slate-400 hover:text-primary whitespace-nowrap shrink-0 hover:bg-slate-50 rounded-t-xl transition-all"
-            title={t.createTabTitle}
-          >
-            +
-          </button>
-          {/* Inkognito-Auge: immer sichtbar, ganz rechts auf Höhe der Reiter */}
+              ))}
+            </ReactSortable>
+            <button 
+              onClick={addTab} 
+              className="px-4 py-3 font-black text-nav text-slate-400 hover:text-primary whitespace-nowrap shrink-0 hover:bg-slate-50 rounded-t-xl transition-all"
+              title={t.createTabTitle}
+            >
+              +
+            </button>
+          </div>
+          {/* Inkognito-Auge: fest rechts außen, immer sichtbar (scrollt nicht mit) */}
           <button
             onClick={toggleIncognito}
             title={
@@ -1568,7 +1693,7 @@ export default function Home() {
                 ? t.endIncognitoTitle
                 : t.enterIncognitoTitle
             }
-            className={`ml-auto shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+            className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all ${
               incognitoUnlocked
                 ? "bg-slate-900 text-white shadow-md hover:bg-slate-700"
                 : "text-slate-400 hover:text-brand-dark hover:bg-slate-100"

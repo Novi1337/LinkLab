@@ -37,6 +37,14 @@ export async function POST(request: Request) {
         const plan = session.metadata?.plan;
         if (!userId || !plan) break;
 
+        // Defense-in-depth: Nur bekannte Plan-Werte in die DB schreiben, selbst
+        // wenn die Metadata (theoretisch) manipuliert sein sollte. "lifetime"
+        // wird ausschließlich manuell per owner.sql vergeben, nie per Checkout.
+        if (plan !== "premium") {
+          console.error(`Webhook: unerwarteter Plan in Checkout-Metadata: ${plan}`);
+          break;
+        }
+
         await supabaseAdmin.from("profiles").upsert(
           {
             id: userId,
