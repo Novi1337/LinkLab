@@ -154,10 +154,23 @@ function SaveWidget() {
     if (!tabId) {
       const { data: newTab, error: tabError } = await supabase
         .from("tabs")
-        .insert([{ name: isEn ? "Home" : "Startseite", user_id: userId }])
+        .insert([{ name: isEn ? "Welcome" : "Willkommen", user_id: userId, position: 0 }])
         .select();
-      if (tabError || !newTab?.length) throw new Error(isEn ? "Tab could not be created." : "Reiter konnte nicht angelegt werden.");
-      tabId = newTab[0].id;
+      if (newTab?.length) {
+        tabId = newTab[0].id;
+      } else if (tabError) {
+        // Race mit der Haupt-App: dort wurde evtl. parallel derselbe Standard-Reiter
+        // angelegt (durch den Unique-Index auf (user_id, position) abgelehnt,
+        // siehe supabase/tab-position-unique.sql) - statt eines Duplikats den
+        // inzwischen vorhandenen Reiter verwenden.
+        const { data: existingTabs } = await supabase
+          .from("tabs")
+          .select("id, is_private")
+          .order("position", { ascending: true, nullsFirst: false })
+          .order("created_at", { ascending: true });
+        tabId = (existingTabs || []).find((t) => !t.is_private)?.id;
+      }
+      if (!tabId) throw new Error(isEn ? "Tab could not be created." : "Reiter konnte nicht angelegt werden.");
     }
 
     const { data: newSection, error: sectionError } = await supabase

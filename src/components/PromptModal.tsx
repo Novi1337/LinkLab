@@ -7,11 +7,12 @@ interface PromptModalProps {
   title: string;
   initialValue?: string;
   locale?: "de" | "en";
+  inputType?: "text" | "password";
   onConfirm: (val: string) => void;
   onCancel: () => void;
 }
 
-export function PromptModal({ isOpen, title, initialValue = "", locale = "de", onConfirm, onCancel }: PromptModalProps) {
+export function PromptModal({ isOpen, title, initialValue = "", locale = "de", inputType = "text", onConfirm, onCancel }: PromptModalProps) {
   const [value, setValue] = useState(initialValue);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -43,7 +44,7 @@ export function PromptModal({ isOpen, title, initialValue = "", locale = "de", o
         <div className="p-6">
           <input
             ref={inputRef}
-            type="text"
+            type={inputType}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {

@@ -253,6 +253,16 @@ export default function Home() {
     reportAuthRequired: isEn ? "Please log in first." : "Bitte zuerst anmelden.",
     showSenderEmail: isEn ? "Show sender email" : "Absender-E-Mail anzeigen",
     senderEmailPrefix: isEn ? "Shared by" : "Geteilt von",
+    forgotPassword: isEn ? "Forgot password?" : "Passwort vergessen?",
+    enterEmailFirst: isEn ? "Please enter your email address first." : "Bitte gib zuerst deine E-Mail-Adresse ein.",
+    resetEmailSent: isEn ? "If this email is registered, you'll receive a reset link shortly." : "Falls diese E-Mail registriert ist, erhältst du in Kürze einen Link zum Zurücksetzen.",
+    resetEmailError: isEn ? "The reset link could not be sent: " : "Der Reset-Link konnte nicht gesendet werden: ",
+    setNewPasswordTitle: isEn ? "Set a new password:" : "Neues Passwort festlegen:",
+    passwordTooShort: isEn ? "Please use at least 6 characters." : "Bitte verwende mindestens 6 Zeichen.",
+    resetPasswordError: isEn ? "Password could not be updated: " : "Passwort konnte nicht aktualisiert werden: ",
+    resetPasswordSuccess: isEn ? "Your password has been updated." : "Dein Passwort wurde aktualisiert.",
+    defaultTabName: isEn ? "Welcome" : "Willkommen",
+    newTabName: isEn ? "New Tab" : "Neuer Reiter",
   };
 
   const [isLoginMode, setIsLoginMode] = useState(true);
@@ -299,6 +309,7 @@ export default function Home() {
     variant: "default",
   });
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [recoveryModalOpen, setRecoveryModalOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [reportBusy, setReportBusy] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
@@ -550,15 +561,27 @@ export default function Home() {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         if (sessionData.session) {
-          const { data: newTab } = await supabase
+          const { data: newTab, error: insertError } = await supabase
             .from("tabs")
-            .insert([{ name: window.location.pathname.startsWith("/en") ? "Home" : "Startseite", user_id: sessionData.session.user.id, position: 0 }])
+            .insert([{ name: t.defaultTabName, user_id: sessionData.session.user.id, position: 0 }])
             .select();
-          
+
           if (newTab && newTab.length > 0) {
             currentTabs = newTab;
             // Assign old sections to this new default tab
             await supabase.from("sections").update({ tab_id: newTab[0].id }).is("tab_id", null);
+          } else if (insertError) {
+            // Ein anderer paralleler Vorgang (z. B. das Save-Widget oder ein zweiter
+            // geöffneter Tab) hat den Standard-Reiter bereits angelegt - der
+            // Unique-Index auf (user_id, position) (siehe supabase/tab-position-unique.sql)
+            // lehnt den doppelten Insert ab. Statt eines weiteren Duplikats einfach
+            // die inzwischen existierenden Reiter neu laden.
+            const { data: refetched } = await supabase
+              .from("tabs")
+              .select("*")
+              .order("position", { ascending: true, nullsFirst: false })
+              .order("created_at", { ascending: true });
+            currentTabs = refetched || [];
           }
         }
       } finally {
@@ -678,6 +701,9 @@ export default function Home() {
     // Einloggen). Der Ref stellt sicher, dass die Initialisierung nur einmal pro
     // Login-Lebenszyklus läuft; beim Logout wird er zurückgesetzt.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (_event === "PASSWORD_RECOVERY") {
+        setRecoveryModalOpen(true);
+      }
       if (session) {
         setIsLoggedIn(true);
         setUserEmail(session.user.email || "");
@@ -711,22 +737,17 @@ export default function Home() {
 
   // Tab Methods
   const addTab = async () => {
-    openPrompt(t.addTabPrompt, "", async (name) => {
-      closePrompt();
-      if (!name?.trim()) return;
-      
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) return;
-      
-      const { data } = await supabase
-        .from("tabs")
-        .insert([{ name: name.trim(), user_id: sessionData.session.user.id, position: tabs.length }])
-        .select();
-      if (data && data.length > 0) {
-        setTabs(prev => [...prev, data[0]]);
-        fetchData(data[0].id);
-      }
-    });
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) return;
+
+    const { data } = await supabase
+      .from("tabs")
+      .insert([{ name: t.newTabName, user_id: sessionData.session.user.id, position: tabs.length }])
+      .select();
+    if (data && data.length > 0) {
+      setTabs(prev => [...prev, data[0]]);
+      fetchData(data[0].id);
+    }
   };
 
   // Drag & Drop-Sortierung der Reiter: mappt die neue Reihenfolge der sichtbaren
@@ -899,6 +920,23 @@ export default function Home() {
         setIsLoginMode(true);
       }
     }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!emailInput.trim()) { alert(t.enterEmailFirst); return; }
+    const { error } = await supabase.auth.resetPasswordForEmail(emailInput.trim(), {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    });
+    if (error) alert(t.resetEmailError + error.message);
+    else alert(t.resetEmailSent);
+  };
+
+  const handleSetNewPassword = async (newPassword: string) => {
+    if (newPassword.length < 6) { alert(t.passwordTooShort); return; }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) { alert(t.resetPasswordError + error.message); return; }
+    setRecoveryModalOpen(false);
+    alert(t.resetPasswordSuccess);
   };
 
   const handleGithubLogin = async () => {
@@ -1316,7 +1354,7 @@ export default function Home() {
             {activeLinkForm === section.id && (
               <form onSubmit={(e) => { addLink(e, section.id); setActiveLinkForm(null); }} className="flex gap-2 mb-4 animate-in slide-in-from-top-1 fade-in duration-200">
                 <input
-                  type="url"
+                  type="text"
                   required
                   placeholder="https://..."
                   value={newLinkInputs[section.id] || ""}
@@ -1459,6 +1497,15 @@ export default function Home() {
                 onChange={(e) => setPasswordInput(e.target.value)}
                 className="p-3.5 rounded-xl border border-slate-200 outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all bg-slate-50/50 focus:bg-white text-brand-dark font-medium placeholder:font-normal"
               />
+              {isLoginMode && (
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="self-end -mt-2 text-xs font-semibold text-slate-500 hover:text-primary transition-colors"
+                >
+                  {t.forgotPassword}
+                </button>
+              )}
               <button type="submit" className="bg-primary text-white p-3.5 rounded-xl font-bold hover:bg-primary-hover hover:scale-[1.02] hover:shadow-xl active:scale-95 transition-all mt-2">
                 {isLoginMode ? t.startNow : t.createAccount}
               </button>
@@ -1501,7 +1548,7 @@ export default function Home() {
     <div className="min-h-screen font-sans">
       <header className="max-w-shell mx-auto flex justify-between items-center px-5 py-4 bg-transparent border-b border-transparent sticky top-0 z-20">
         <div className="flex items-center">
-          <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[26px] w-auto max-w-[50vw]" />
+          <img src="/Wordmark.svg" alt="LinkLib Logo" className="h-[31px] w-auto max-w-[50vw]" />
         </div>
         <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
           <LanguageSwitcher className="hidden sm:inline-flex" />
@@ -1616,6 +1663,24 @@ export default function Home() {
                       <Share2 className="w-3.5 h-3.5" />
                     </span>
                   )}
+                  {tab.shared_from_label && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openReportDialog({
+                          resourceType: "tab",
+                          resourceId: tab.id,
+                          label: `${isEn ? "Tab" : "Reiter"}: ${tab.name}`,
+                        });
+                      }}
+                      title={t.report}
+                      className="w-3.5 h-3.5 text-slate-300 hover:text-danger flex items-center justify-center leading-none"
+                    >
+                      <Flag className="w-3.5 h-3.5" />
+                    </span>
+                  )}
                   <span
                     role="button"
                     tabIndex={0}
@@ -1640,7 +1705,8 @@ export default function Home() {
                 <div className="flex items-center gap-2 w-full min-w-0">
                   <span className="truncate min-w-0" style={tab.color ? { color: tab.color } : undefined}>{tab.name}</span>
                 </div>
-                {/* "Geteilt von"-Label in eigener Zeile unter dem Namen, damit der Reiter schmal bleibt */}
+                {/* "Geteilt von"-Label in eigener Zeile unter dem Namen, damit der Reiter schmal bleibt.
+                    Die Melden-Flagge liegt im Hover-Menü oberhalb (siehe Icon-Zeile). */}
                 {tab.shared_from_label && (
                   <div className="flex items-center gap-1 w-full">
                     <span
@@ -1655,21 +1721,6 @@ export default function Home() {
                     >
                       {tab.shared_from_label}
                     </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openReportDialog({
-                          resourceType: "tab",
-                          resourceId: tab.id,
-                          label: `${isEn ? "Tab" : "Reiter"}: ${tab.name}`,
-                        });
-                      }}
-                      title={t.report}
-                      className="text-[9px] font-bold uppercase tracking-wider text-danger bg-red-50 px-1.5 py-0.5 rounded-full shrink-0 inline-flex items-center gap-1"
-                    >
-                      <Flag className="w-2.5 h-2.5" /> {t.report}
-                    </button>
                   </div>
                 )}
               </button>
@@ -1679,7 +1730,7 @@ export default function Home() {
             </ReactSortable>
             <button 
               onClick={addTab} 
-              className="px-4 py-3 font-black text-nav text-slate-400 hover:text-primary whitespace-nowrap shrink-0 hover:bg-slate-50 rounded-t-xl transition-all"
+              className="px-4 pt-5 pb-3 font-black text-nav text-slate-400 hover:text-primary whitespace-nowrap shrink-0 hover:bg-slate-50 rounded-t-xl transition-all"
               title={t.createTabTitle}
             >
               +
@@ -1693,13 +1744,13 @@ export default function Home() {
                 ? t.endIncognitoTitle
                 : t.enterIncognitoTitle
             }
-            className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+            className={`shrink-0 w-[35px] h-[35px] flex items-center justify-center rounded-full transition-all ${
               incognitoUnlocked
                 ? "bg-slate-900 text-white shadow-md hover:bg-slate-700"
                 : "text-slate-400 hover:text-brand-dark hover:bg-slate-100"
             }`}
           >
-            {incognitoUnlocked ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {incognitoUnlocked ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
           </button>
         </div>
       </div>
@@ -1799,6 +1850,16 @@ export default function Home() {
         locale={locale}
         onConfirm={promptData.onConfirm}
         onCancel={closePrompt}
+      />
+      {/* Passwort-Reset: nach Klick auf den Link aus der E-Mail landet der Nutzer
+          hier mit einer aktiven Recovery-Session (Event PASSWORD_RECOVERY). */}
+      <PromptModal
+        isOpen={recoveryModalOpen}
+        title={t.setNewPasswordTitle}
+        inputType="password"
+        locale={locale}
+        onConfirm={handleSetNewPassword}
+        onCancel={() => setRecoveryModalOpen(false)}
       />
       {/* Confirm Modal */}
       <ConfirmModal
