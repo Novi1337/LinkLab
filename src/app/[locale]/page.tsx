@@ -11,7 +11,8 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { ReportModal } from "@/components/ReportModal";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { IncognitoPasswordModal } from "@/components/IncognitoPasswordModal";
-import { ReferralModal } from "@/components/ReferralModal";
+import { ReferralSheet, type ReferralSheetVariant } from "@/components/ReferralSheet";
+import { Toast } from "@/components/Toast";
 import { AccountModal } from "@/components/AccountModal";
 import { LegalFooter } from "@/components/LegalFooter";
 import { LandingSections } from "@/components/LandingSections";
@@ -216,14 +217,19 @@ export default function Home() {
     continueGoogle: isEn ? "Continue with Google" : "Mit Google fortfahren",
     noAccount: isEn ? "No account yet?" : "Noch kein Konto?",
     registerFree: isEn ? "Register for free" : "Kostenlos registrieren",
-    inviteTitle: isEn ? "Invite friends - get 1 year Premium" : "Freunde einladen - 1 Jahr Premium sichern",
-    invite: isEn ? "Invite" : "Einladen",
+    inviteTitle: isEn ? "Get a free month" : "Monat gratis sichern",
+    invite: isEn ? "Free month" : "Monat gratis",
     lifetimeTitle: isEn ? "Lifetime Premium access incl. Incognito" : "Lebenslanger Premium-Zugang inkl. Inkognito",
     managePremiumTitle: isEn ? "Manage Premium subscription" : "Premium-Abo verwalten",
     referralPremiumUntil: isEn ? "Premium via referrals until " : "Premium über Empfehlungsprogramm bis ",
     adFreeTitle: isEn ? "Ad-free with LinkLib Premium" : "Werbefrei mit LinkLib Premium",
     accountTitle: isEn ? "Manage account (subscription, password, deletion)" : "Konto verwalten (Abo, Passwort, Löschung)",
     logout: isEn ? "Log out" : "Logout",
+    nudge10Message: isEn
+      ? "Your digital brain is growing! You've saved 10 important links. Share LinkLib with a friend: you both get 1 month of Premium as a gift."
+      : "Dein digitales Gehirn wächst! Du hast bereits 10 wichtige Links gesichert. Teile LinkLib mit einem Freund: Ihr bekommt beide 1 Monat Premium geschenkt.",
+    nudge10Cta: isEn ? "Share now" : "Jetzt teilen",
+    capacityChip: isEn ? "links used" : "Links genutzt",
     tabRenameTitle: isEn ? "Double-click to rename" : "Doppelklick zum Umbenennen",
     makePublicTitle: isEn ? "Make tab public" : "Reiter öffentlich machen",
     makePrivateTitle: isEn ? "Make tab private (visible only in Incognito mode)" : "Reiter privat machen (nur im Inkognito-Modus sichtbar)",
@@ -273,7 +279,18 @@ export default function Home() {
   const [premiumPlan, setPremiumPlan] = useState<string | null>(null);
   const [referralUntil, setReferralUntil] = useState<string | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
-  const [referralModalOpen, setReferralModalOpen] = useState(false);
+  const [referralSheet, setReferralSheet] = useState<{ isOpen: boolean; variant: ReferralSheetVariant }>({
+    isOpen: false,
+    variant: "default",
+  });
+  const openReferralSheet = (variant: ReferralSheetVariant) => setReferralSheet({ isOpen: true, variant });
+  const closeReferralSheet = () => setReferralSheet(prev => ({ ...prev, isOpen: false }));
+  const [nudgeToast, setNudgeToast] = useState<{ isOpen: boolean; message: string; ctaLabel: string; variant: ReferralSheetVariant }>({
+    isOpen: false,
+    message: "",
+    ctaLabel: "",
+    variant: "default",
+  });
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [reportBusy, setReportBusy] = useState(false);
@@ -375,10 +392,14 @@ export default function Home() {
         // nach 3s erneut, da der Stripe-Webhook später eintreffen kann als der Redirect.
         const immediate = setTimeout(fetchPremiumStatus, 0);
         const retry = setTimeout(fetchPremiumStatus, 3000);
+        // Referral-Trigger 3 ("Halo-Effekt"): direkt auf der Danke-Seite das
+        // Bottom-Sheet mit der Post-Purchase-Botschaft zeigen.
+        const openSheet = setTimeout(() => openReferralSheet("postPurchase"), 400);
         window.history.replaceState({}, "", window.location.pathname);
         return () => {
           clearTimeout(immediate);
           clearTimeout(retry);
+          clearTimeout(openSheet);
         };
       }
       window.history.replaceState({}, "", window.location.pathname);
@@ -900,7 +921,30 @@ export default function Home() {
       return fetchData(activeTabId);
     }
     const realDbLink = insertedData[0];
-    setLinkCounts(prev => isPrivateTarget ? { ...prev, private: prev.private + 1 } : { ...prev, normal: prev.normal + 1 });
+    const nextNormal = isPrivateTarget ? linkCounts.normal : linkCounts.normal + 1;
+    const nextPrivate = isPrivateTarget ? linkCounts.private + 1 : linkCounts.private;
+    setLinkCounts({ normal: nextNormal, private: nextPrivate });
+
+    // Referral-Trigger 1 ("Aha-Moment"): direkt nach dem 10. gespeicherten Link
+    // eine dezente, nicht-blockierende Notification zeigen (kein Modal, kein
+    // Unterbrechen des Speichervorgangs) - einmalig pro Account.
+    if (!isPremium && nextNormal + nextPrivate === 10) {
+      const nudgeKey = `linklib_ref_nudge10_${sessionData.session.user.id}`;
+      if (!localStorage.getItem(nudgeKey)) {
+        localStorage.setItem(nudgeKey, "1");
+        setNudgeToast({ isOpen: true, message: t.nudge10Message, ctaLabel: t.nudge10Cta, variant: "default" });
+      }
+    }
+
+    // Referral-Trigger 2 ("Sicherheitsventil"): beim Erreichen des 25. normalen
+    // Links einmalig das Bottom-Sheet mit Upgrade- und Einladungs-Option zeigen.
+    if (!isPremium && !isPrivateTarget && nextNormal === 25) {
+      const nudgeKey = `linklib_ref_nudge25_${sessionData.session.user.id}`;
+      if (!localStorage.getItem(nudgeKey)) {
+        localStorage.setItem(nudgeKey, "1");
+        openReferralSheet("limit");
+      }
+    }
 
     // Fetch Metadata
     try {
@@ -1348,8 +1392,20 @@ export default function Home() {
         <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
           <LanguageSwitcher className="hidden sm:inline-flex" />
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
+          {!isPremium && linkCounts.normal >= 25 && (
+            <>
+              <button
+                onClick={() => openReferralSheet("limit")}
+                title={t.capacityChip}
+                className="font-bold text-amber-600 hover:text-amber-700 transition-colors flex items-center gap-1.5 bg-amber-50 px-2 py-0.5 rounded-full"
+              >
+                {linkCounts.normal}/{NORMAL_LINK_LIMIT}
+              </button>
+              <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
+            </>
+          )}
           <button
-            onClick={() => setReferralModalOpen(true)}
+            onClick={() => openReferralSheet("default")}
             title={t.inviteTitle}
             className="font-bold text-slate-500 hover:text-primary transition-colors flex items-center gap-1.5"
           >
@@ -1647,8 +1703,25 @@ export default function Home() {
       )}
       {/* Premium Upgrade Modal */}
       <UpgradeModal isOpen={upgradeModalOpen} locale={locale} onClose={() => setUpgradeModalOpen(false)} />
-      {/* Freunde einladen (Empfehlungsprogramm) - bei jedem Öffnen frisch gemountet */}
-      {referralModalOpen && <ReferralModal isOpen locale={locale} onClose={() => setReferralModalOpen(false)} />}
+      {/* Empfehlungsprogramm: ruhiges Bottom-Sheet statt zentriertem Modal - bei
+          jedem Öffnen frisch gemountet, damit die Statistik aktuell bleibt. */}
+      {referralSheet.isOpen && (
+        <ReferralSheet
+          isOpen
+          locale={locale}
+          variant={referralSheet.variant}
+          onClose={closeReferralSheet}
+          onUpgrade={() => { closeReferralSheet(); setUpgradeModalOpen(true); }}
+        />
+      )}
+      {/* Celebration-Toast nach dem 10. gespeicherten Link (Trigger 1) */}
+      <Toast
+        isOpen={nudgeToast.isOpen}
+        message={nudgeToast.message}
+        ctaLabel={nudgeToast.ctaLabel}
+        onCta={() => { setNudgeToast(prev => ({ ...prev, isOpen: false })); openReferralSheet(nudgeToast.variant); }}
+        onDismiss={() => setNudgeToast(prev => ({ ...prev, isOpen: false }))}
+      />
       {/* Konto verwalten (Abo, Passwort, Account-Löschung) - bei jedem Öffnen frisch gemountet */}
       {accountModalOpen && (
         <AccountModal

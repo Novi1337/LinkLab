@@ -2,20 +2,36 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { getSupabaseAdmin, getUserFromRequest } from "@/lib/stripe";
 
-// Empfehlungsprogramm:
+// Empfehlungsprogramm v2 (Pro-Signup-Prämien statt 10er-Ziel):
 // GET  -> eigenen Referral-Code (wird bei Bedarf erzeugt) + Statistik laden
-// POST -> Referral-Code nach der Registrierung einlösen; der Werbende erhält
-//         ab 10 erfolgreichen Empfehlungen 1 Jahr Premium.
+// POST -> Referral-Code nach der Registrierung einlösen. Der geworbene Freund
+//         erhält SOFORT 30 Tage Premium (45 Tage, falls der Werber selbst
+//         Premium/Lifetime ist). Der Werber erhält pro Empfehlung +1 Monat
+//         (30 Tage), gedeckelt auf insgesamt 6 Monate.
 //
 // Alle Schreibzugriffe laufen über den Service-Role-Key - Clients können die
-// Referral-Spalten nicht direkt manipulieren (Spaltenrechte, siehe supabase/referrals.sql).
+// Referral-Spalten nicht direkt manipulieren (Spaltenrechte, siehe
+// supabase/referrals.sql und supabase/referrals-v2.sql).
 
-const REWARD_THRESHOLD = 10;
-const REWARD_MONTHS = 12;
+const REFEREE_DAYS_DEFAULT = 30;
+const REFEREE_DAYS_PREMIUM_REFERRER = 45;
+const REFERRER_BONUS_DAYS = 30;
+const REFERRER_MONTHS_CAP = 6;
 
 // Nur frisch registrierte Accounts dürfen einen Code einlösen - verhindert,
 // dass sich Bestandsnutzer gegenseitig Prämien zuschieben.
 const MAX_ACCOUNT_AGE_MS = 48 * 60 * 60 * 1000;
+
+function addDays(base: Date, days: number): Date {
+  return new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+// Verlängert eine bestehende Premium-Frist um `days`, ohne bereits gewährte
+// Zeit zu verlieren (max(jetzt, bisheriges Ablaufdatum) + days).
+function extendUntil(currentUntil: string | null, days: number): Date {
+  const base = currentUntil && new Date(currentUntil) > new Date() ? new Date(currentUntil) : new Date();
+  return addDays(base, days);
+}
 
 // Gut lesbarer 8-stelliger Code ohne verwechselbare Zeichen (0/O, 1/I/L)
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -44,7 +60,7 @@ export async function GET(request: Request) {
 
   const { data: profile, error } = await admin
     .from("profiles")
-    .select("referral_code, referral_reward_granted, referral_premium_until")
+    .select("referral_code, referral_premium_until, referral_months_earned, share_nickname")
     .eq("id", user.id)
     .maybeSingle();
   if (error) {
@@ -87,9 +103,10 @@ export async function GET(request: Request) {
   return NextResponse.json({
     code,
     referralCount: count ?? 0,
-    rewardThreshold: REWARD_THRESHOLD,
-    rewardGranted: profile?.referral_reward_granted ?? false,
+    monthsEarned: profile?.referral_months_earned ?? 0,
+    monthsCap: REFERRER_MONTHS_CAP,
     premiumUntil: profile?.referral_premium_until ?? null,
+    displayName: profile?.share_nickname?.trim() || null,
   });
 }
 
@@ -120,7 +137,7 @@ export async function POST(request: Request) {
 
   const { data: referrer } = await admin
     .from("profiles")
-    .select("id, referral_reward_granted")
+    .select("id, premium_plan, referral_premium_until, referral_months_earned")
     .eq("referral_code", normalized)
     .maybeSingle();
   if (!referrer) {
@@ -133,18 +150,25 @@ export async function POST(request: Request) {
   // Jeder Account kann nur EINMAL geworben werden
   const { data: ownProfile } = await admin
     .from("profiles")
-    .select("id, referred_by")
+    .select("id, referred_by, referral_premium_until")
     .eq("id", user.id)
     .maybeSingle();
   if (ownProfile?.referred_by) {
     return NextResponse.json({ error: "Für diesen Account wurde bereits ein Code eingelöst" }, { status: 409 });
   }
 
+  // Sofortige Prämie für den geworbenen Freund: 30 Tage Premium, 45 Tage,
+  // falls der Werber selbst gerade Premium/Lifetime hat ("Halo-Effekt").
+  const refereeDays = referrer.premium_plan === "premium" || referrer.premium_plan === "lifetime"
+    ? REFEREE_DAYS_PREMIUM_REFERRER
+    : REFEREE_DAYS_DEFAULT;
+  const refereeUntil = extendUntil(ownProfile?.referral_premium_until ?? null, refereeDays);
+
   if (ownProfile) {
     // Bedingtes Update verhindert Doppel-Einlösung bei parallelen Requests
     const { data: updated, error: updateError } = await admin
       .from("profiles")
-      .update({ referred_by: referrer.id })
+      .update({ referred_by: referrer.id, referral_premium_until: refereeUntil.toISOString() })
       .eq("id", user.id)
       .is("referred_by", null)
       .select("id");
@@ -154,33 +178,30 @@ export async function POST(request: Request) {
   } else {
     const { error: insertError } = await admin
       .from("profiles")
-      .insert({ id: user.id, referred_by: referrer.id });
+      .insert({ id: user.id, referred_by: referrer.id, referral_premium_until: refereeUntil.toISOString() });
     if (insertError) {
       return NextResponse.json({ error: "Code konnte nicht eingelöst werden" }, { status: 409 });
     }
   }
 
-  // Prämie: 1 Jahr Premium, sobald 10 erfolgreiche Empfehlungen erreicht sind.
-  // Das bedingte Update stellt sicher, dass die Prämie genau einmal vergeben wird.
-  if (!referrer.referral_reward_granted) {
-    const { count } = await admin
+  // Prämie für den Werber: +1 Monat (30 Tage) pro erfolgreicher Empfehlung,
+  // gedeckelt auf insgesamt 6 Monate. Bedingtes Update (auf den zuvor gelesenen
+  // Zählerstand) verhindert, dass parallele Einlösungen den Deckel umgehen.
+  const monthsEarned = referrer.referral_months_earned ?? 0;
+  if (monthsEarned < REFERRER_MONTHS_CAP) {
+    const referrerUntil = extendUntil(referrer.referral_premium_until, REFERRER_BONUS_DAYS);
+    const { error: rewardError } = await admin
       .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("referred_by", referrer.id);
-
-    if ((count ?? 0) >= REWARD_THRESHOLD) {
-      const until = new Date();
-      until.setMonth(until.getMonth() + REWARD_MONTHS);
-      const { error: rewardError } = await admin
-        .from("profiles")
-        .update({ referral_reward_granted: true, referral_premium_until: until.toISOString() })
-        .eq("id", referrer.id)
-        .eq("referral_reward_granted", false);
-      if (rewardError) {
-        console.error("Referral-Prämie konnte nicht gutgeschrieben werden:", rewardError);
-      }
+      .update({
+        referral_months_earned: monthsEarned + 1,
+        referral_premium_until: referrerUntil.toISOString(),
+      })
+      .eq("id", referrer.id)
+      .eq("referral_months_earned", monthsEarned);
+    if (rewardError) {
+      console.error("Referral-Prämie konnte nicht gutgeschrieben werden:", rewardError);
     }
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, refereeDays });
 }
