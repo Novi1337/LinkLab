@@ -74,6 +74,9 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  // Explizite Bestätigung: Der Nutzer muss seine E-Mail-Adresse eintippen,
+  // bevor die (serverseitig ebenfalls geprüfte) Löschung möglich ist.
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
 
   const loadSubscription = useCallback(async () => {
     // Kein synchrones setState vor dem ersten await - vermeidet Render-Kaskaden im Effect
@@ -250,7 +253,11 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
     setDeleteBusy(true);
     setDeleteError("");
     try {
-      const res = await fetch("/api/account/delete", { method: "POST", headers: await authHeader() });
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeader()) },
+        body: JSON.stringify({ confirmEmail: deleteConfirmEmail.trim() }),
+      });
       if (!res.ok) throw new Error();
       // Lokale Session beenden - der Auth-Listener in page.tsx setzt die App zurück
       await supabase.auth.signOut();
@@ -527,10 +534,21 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
                     ? "Your account, all saved links, sections, and tabs, as well as any active subscription, will be deleted immediately and permanently."
                     : "Dein Account, alle gespeicherten Links, Sektionen und Reiter sowie ein eventuell laufendes Abo werden sofort und unwiderruflich gelöscht."}
                 </p>
+                <label className="text-sm text-red-800 flex flex-col gap-1.5">
+                  {isEn ? "Type your email address to confirm:" : "Gib zur Bestätigung deine E-Mail-Adresse ein:"}
+                  <input
+                    type="email"
+                    value={deleteConfirmEmail}
+                    onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                    placeholder={userEmail}
+                    autoComplete="off"
+                    className="p-2.5 rounded-lg border border-red-300 outline-none focus:border-danger text-sm bg-white text-brand-dark"
+                  />
+                </label>
                 {deleteError && <p className="text-sm text-danger m-0 font-semibold">{deleteError}</p>}
                 <div className="flex gap-2 justify-end">
                   <button
-                    onClick={() => setConfirmDelete(false)}
+                    onClick={() => { setConfirmDelete(false); setDeleteConfirmEmail(""); }}
                     disabled={deleteBusy}
                     className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
                   >
@@ -538,7 +556,7 @@ export function AccountModal({ isOpen, userEmail, onClose, locale = "de", onSubs
                   </button>
                   <button
                     onClick={deleteAccount}
-                    disabled={deleteBusy}
+                    disabled={deleteBusy || deleteConfirmEmail.trim().toLowerCase() !== userEmail.toLowerCase()}
                     className="px-4 py-1.5 text-sm font-bold text-white bg-danger hover:opacity-90 rounded-lg transition-colors disabled:opacity-50"
                   >
                     {deleteBusy ? (isEn ? "Deleting ..." : "Wird gelöscht …") : (isEn ? "Delete permanently" : "Endgültig löschen")}

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHmac } from "crypto";
 import { getAdminFromRequest, getSupabaseAdmin } from "@/lib/stripe";
 import {
   isModerationReportStatus,
@@ -6,6 +7,15 @@ import {
   type ModerationReportStatus,
   normalizeDomain,
 } from "@/lib/moderation";
+
+// Anonymisiert die Reporter-Identität für die Admin-Ansicht: Der stabile
+// Kurzhash erlaubt es, wiederholte Meldungen desselben Nutzers zu erkennen
+// (Spam-Muster), ohne die tatsächliche User-ID preiszugeben - schützt Melder
+// vor Doxxing/Retaliation, falls Admin-Antworten oder Screenshots geteilt werden.
+function anonymizeReporter(reporterUserId: string): string {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || "linklib-reporter";
+  return createHmac("sha256", secret).update(reporterUserId).digest("hex").slice(0, 12);
+}
 
 const DEFAULT_STATUSES: ModerationReportStatus[] = ["open", "in_review"];
 
@@ -176,8 +186,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Reports konnten nicht geladen werden" }, { status: 500 });
     }
 
+    // Reporter-Identität vor der Auslieferung anonymisieren (siehe anonymizeReporter)
+    const sanitizedReports = (reports || []).map(({ reporter_user_id, ...rest }) => ({
+      ...rest,
+      reporter_key: anonymizeReporter(reporter_user_id),
+    }));
+
     if (!includeDashboard) {
-      return NextResponse.json({ reports: reports || [] });
+      return NextResponse.json({ reports: sanitizedReports });
     }
 
     const nowIso = new Date().toISOString();
@@ -218,7 +234,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      reports: reports || [],
+      reports: sanitizedReports,
       recentRevokedShares: revokedResult.data || [],
       restrictedUsers: restrictedUsersResult.data || [],
       blockedDomains: blockedDomainsResult.data || [],

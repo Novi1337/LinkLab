@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { getSupabaseAdmin, getUserFromRequest } from "@/lib/stripe";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 type IdentityBody = {
   nickname?: string;
@@ -189,6 +190,12 @@ export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) {
     return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+  }
+
+  // Rate-Limit: Der Handle hat bereits einen 30-Tage-Cooldown, aber der Nickname
+  // war unbegrenzt änderbar - das bremst Spam-/Lastspitzen einzelner Accounts.
+  if (!checkRateLimit(`nickname:${user.id}`, 5, 60_000)) {
+    return NextResponse.json({ error: "Zu viele Änderungen. Bitte kurz warten." }, { status: 429 });
   }
 
   let body: IdentityBody;

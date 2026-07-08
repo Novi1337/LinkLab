@@ -7,7 +7,7 @@ import { localeFromPathname, type AppLocale } from "@/lib/locale";
 
 type ReportRow = {
   id: number;
-  reporter_user_id: string;
+  reporter_key: string;
   resource_type: "tab" | "section" | "link" | "share_token";
   resource_id: string;
   reason_code: string;
@@ -513,7 +513,7 @@ export default function AdminPage() {
                         <td className="py-2 pr-3">
                           <div className="font-semibold text-brand-dark">{report.resource_type}</div>
                           <div className="text-xs text-slate-500 break-all">{report.resource_id}</div>
-                          <div className="text-xs text-slate-400 break-all">reporter: {report.reporter_user_id}</div>
+                          <div className="text-xs text-slate-400 break-all">reporter: {report.reporter_key}</div>
                         </td>
                         <td className="py-2 pr-3">
                           <div className="font-medium">{report.reason_code}</div>

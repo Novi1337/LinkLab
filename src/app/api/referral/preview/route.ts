@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/stripe";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 // Öffentlicher, nicht-authentifizierter Endpunkt für die personalisierte
 // Einladungsseite (/invite/[code]): liefert NUR den Anzeigenamen des Werbers
 // (share_nickname, ohnehin für Share-Labels gedacht) und die Anzahl Tage, die
 // ein neu registrierter Freund geschenkt bekommt - keine weitere PII.
 export async function GET(request: Request) {
+  // IP-basiertes Rate-Limit: verhindert das Durchprobieren (Enumeration)
+  // gültiger Referral-Codes über diesen öffentlichen Endpunkt.
+  if (!checkRateLimit(`referral-preview:${getClientIp(request)}`, 10, 60_000)) {
+    return NextResponse.json({ error: "Zu viele Anfragen. Bitte kurz warten." }, { status: 429 });
+  }
+
   const { searchParams } = new URL(request.url);
   const rawCode = searchParams.get("code") || "";
   if (!/^[A-Za-z0-9]{4,16}$/.test(rawCode)) {

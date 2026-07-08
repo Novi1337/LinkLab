@@ -4,6 +4,7 @@ import { isIP } from 'net';
 import { lookup } from 'dns/promises';
 import { decodeHTML } from 'entities';
 import { getUserFromRequest } from '@/lib/stripe';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 // Manche Seiten (z. B. Vimeo) kodieren HTML-Entities in ihren Meta-Tags doppelt
 // ("&amp;rsquo;" statt "&rsquo;"), wodurch nach dem normalen HTML-Parsing noch
@@ -220,6 +221,12 @@ export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) {
     return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 });
+  }
+
+  // Rate-Limit pro Nutzer: bremst Missbrauch als Fetch-Proxy und schützt den
+  // Server vor Last durch Dauerschleifen (jeder Request = externer Fetch + Parsing).
+  if (!checkRateLimit(`metadata:${user.id}`, 20, 60_000)) {
+    return NextResponse.json({ error: 'Zu viele Anfragen. Bitte kurz warten.' }, { status: 429 });
   }
 
   const { searchParams } = new URL(request.url);

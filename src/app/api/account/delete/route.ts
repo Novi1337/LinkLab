@@ -1,16 +1,43 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getStripe, getSupabaseAdmin, getUserFromRequest } from "@/lib/stripe";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 // Löscht den Account des eingeloggten Nutzers unwiderruflich:
 // 1. Stripe-Kunde löschen (kündigt laufende Abos automatisch sofort)
 // 2. Alle Nutzerdaten aus der DB entfernen (links -> sections -> tabs -> profiles)
 // 3. Den Auth-User selbst löschen
 // Reihenfolge ist bewusst: Erst Zahlungen stoppen, dann Daten, dann Login.
+//
+// Schutz gegen versehentliche/automatisierte Löschung (z. B. per geleaktem Token
+// oder XSS-One-Shot): Der Request muss die eigene E-Mail-Adresse als explizite
+// Bestätigung im Body mitschicken - ein blinder POST ohne Kenntnis der E-Mail
+// reicht nicht aus. Zusätzlich ist die Route rate-limitiert.
 export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) {
     return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+  }
+
+  if (!checkRateLimit(`account-delete:${user.id}`, 3, 60_000)) {
+    return NextResponse.json({ error: "Zu viele Versuche. Bitte kurz warten." }, { status: 429 });
+  }
+
+  let confirmEmail: unknown;
+  try {
+    ({ confirmEmail } = await request.json());
+  } catch {
+    return NextResponse.json({ error: "Bestätigung erforderlich" }, { status: 400 });
+  }
+  if (
+    typeof confirmEmail !== "string" ||
+    !user.email ||
+    confirmEmail.trim().toLowerCase() !== user.email.toLowerCase()
+  ) {
+    return NextResponse.json(
+      { error: "Bestätigung fehlgeschlagen: Bitte gib deine E-Mail-Adresse exakt ein." },
+      { status: 400 }
+    );
   }
 
   const supabaseAdmin = getSupabaseAdmin();
