@@ -168,25 +168,13 @@ export async function POST(request: Request) {
 
     const { data: profile, error: profileError } = await admin
       .from("profiles")
-      .select(
-        "premium_plan, referral_premium_until, share_handle, sharing_disabled_until, suspended_until, account_status"
-      )
+      .select("share_handle, sharing_disabled_until, suspended_until, account_status")
       .eq("id", user.id)
       .maybeSingle();
 
     if (profileError) {
       console.error("Profil konnte nicht geladen werden:", profileError);
       return NextResponse.json({ error: "Share-Link konnte nicht erstellt werden" }, { status: 500 });
-    }
-
-    const referralPremiumActive =
-      !!profile?.referral_premium_until && new Date(profile.referral_premium_until) > new Date();
-    const isPremiumSharer = !!profile?.premium_plan || referralPremiumActive || user.app_metadata?.role === "admin";
-    if (!isPremiumSharer) {
-      return NextResponse.json(
-        { error: "Teilen ist nur mit Premium verfügbar." },
-        { status: 403 }
-      );
     }
 
     if (!profile?.share_handle) {

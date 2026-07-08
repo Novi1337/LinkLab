@@ -236,7 +236,6 @@ export default function Home() {
     emptySubtitle: isEn
       ? 'Click "+ Insert section" in the top right to start saving links in this tab.'
       : 'Klicke oben rechts auf "+ Abschnitt einfügen", um mit dem Speichern deiner Links in diesem Reiter zu beginnen.',
-    sharePremiumOnly: isEn ? "Sharing is available with Premium only." : "Teilen ist nur mit Premium verfügbar.",
     shareNeedHandle: isEn
       ? "Please set a share handle in account settings first."
       : "Bitte lege zuerst in den Kontoeinstellungen einen Share-Handle fest.",
@@ -979,12 +978,6 @@ export default function Home() {
   };
 
   const shareResource = async (type: "tab" | "section", id: string, label: string) => {
-    if (!isPremium) {
-      alert(t.sharePremiumOnly);
-      setUpgradeModalOpen(true);
-      return;
-    }
-
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
     if (!accessToken) {
@@ -1142,15 +1135,13 @@ export default function Home() {
             <button onClick={() => setActiveLinkForm(activeLinkForm === section.id ? null : section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
               {t.addLink}
             </button>
-            {isPremium && (
-              <button
-                onClick={() => shareResource("section", section.id, `Abschnitt ${section.name}`)}
-                className="text-sm font-medium text-primary hover:text-primary-hover inline-flex items-center gap-1"
-                title="Abschnitt teilen"
-              >
-                <Share2 className="w-3.5 h-3.5" /> Teilen
-              </button>
-            )}
+            <button
+              onClick={() => shareResource("section", section.id, `Abschnitt ${section.name}`)}
+              className="text-sm font-medium text-primary hover:text-primary-hover inline-flex items-center gap-1"
+              title="Abschnitt teilen"
+            >
+              <Share2 className="w-3.5 h-3.5" /> Teilen
+            </button>
             {depth === 0 && (
               <button onClick={() => addSection(section.id)} className="text-sm font-medium text-primary hover:text-primary-hover">
                 {t.addSubsection}
@@ -1436,7 +1427,7 @@ export default function Home() {
                       {tab.is_private ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </span>
                   )}
-                  {!tab.is_private && isPremium && (
+                  {!tab.is_private && (
                     <span
                       role="button"
                       tabIndex={0}
