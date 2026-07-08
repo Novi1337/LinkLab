@@ -38,12 +38,12 @@ const FEATURES = [
   {
     icon: EyeOff,
     title: "Inkognito-Reiter",
-    text: "Private Reiter mit Passwortschutz: Sensible Links bleiben ausschließlich für dich sichtbar.",
+    text: "Private Reiter mit Passwortschutz gibt es für alle: im kostenlosen Plan für bis zu 5 Links, mit Premium unbegrenzt.",
   },
   {
     icon: Sparkles,
     title: "Kostenlos starten",
-    text: "Alle Grundfunktionen sind dauerhaft kostenlos – registriere dich in wenigen Sekunden und leg los.",
+    text: "30 normale Links und 5 private Links sind dauerhaft kostenlos – registriere dich in wenigen Sekunden und leg los.",
   },
 ];
 
@@ -56,7 +56,7 @@ const FAQS = [
   {
     question: "Ist LinkLib wirklich kostenlos?",
     answer:
-      "Ja. Alle Grundfunktionen sind dauerhaft kostenlos und werden über dezente Werbung finanziert. Mit LinkLib Premium nutzt du die App werbefrei und erhältst Zusatzfunktionen wie passwortgeschützte Inkognito-Reiter.",
+      "Ja. Im kostenlosen Plan speicherst du bis zu 30 normale Links und 5 private Links im passwortgeschützten Inkognito-Reiter – dauerhaft und ohne Kreditkarte. Mit LinkLib Premium (24 €/Jahr) entfallen beide Limits und die App ist komplett werbefrei.",
   },
   {
     question: "Auf welchen Geräten funktioniert LinkLib?",
@@ -129,12 +129,12 @@ const CONTENT: Record<AppLocale, {
       {
         icon: EyeOff,
         title: "Incognito tabs",
-        text: "Private password-protected tabs keep sensitive links visible only to you.",
+        text: "Private password-protected tabs are available to everyone: up to 5 links on the free plan, unlimited with Premium.",
       },
       {
         icon: Sparkles,
         title: "Start for free",
-        text: "All core features stay free forever, sign up in seconds and get started.",
+        text: "30 normal links and 5 private links stay free forever, sign up in seconds and get started.",
       },
     ],
     faqs: [
@@ -146,7 +146,7 @@ const CONTENT: Record<AppLocale, {
       {
         question: "Is LinkLib really free?",
         answer:
-          "Yes. All core features are free forever and funded by discreet ads. With LinkLib Premium, you can use the app ad-free and unlock extras like password-protected incognito tabs.",
+          "Yes. On the free plan you can save up to 30 normal links and 5 private links in the password-protected incognito tab, forever and without a credit card. With LinkLib Premium (24 EUR/year) both limits disappear and the app is completely ad-free.",
       },
       {
         question: "Which devices support LinkLib?",

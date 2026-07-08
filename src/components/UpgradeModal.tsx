@@ -4,7 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { localizePath } from "@/lib/locale";
 
-type Plan = "premium" | "premium_plus" | "lifetime";
+type Plan = "premium";
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -12,30 +12,16 @@ interface UpgradeModalProps {
   locale?: "de" | "en";
 }
 
-// Anzeige-Infos der Pläne. Die echten Preise/Price-IDs liegen ausschließlich
+// Anzeige-Infos des Plans. Die echten Preise/Price-IDs liegen ausschließlich
 // serverseitig in Stripe - hier stehen nur Beschriftungen fürs UI.
 const PLANS: { id: Plan; name: string; price: string; hint: string; features: string[]; highlight?: boolean }[] = [
   {
     id: "premium",
     name: "Premium",
-    price: "12 €",
-    hint: "pro Jahr, jederzeit kündbar",
-    features: ["Unbegrenzt Reiter, Abschnitte & Unterabschnitte", "Komplett werbefrei"],
-  },
-  {
-    id: "premium_plus",
-    name: "Premium+",
     price: "24 €",
     hint: "pro Jahr, jederzeit kündbar",
-    features: ["Alles aus Premium", "Inkognito-Modus: private Reiter mit Passwortschutz"],
+    features: ["Unbegrenzt normale Links (statt 30)", "Unbegrenzt private Links im Inkognito-Reiter (statt 5)", "Komplett werbefrei"],
     highlight: true,
-  },
-  {
-    id: "lifetime",
-    name: "Lifetime",
-    price: "69 €",
-    hint: "einmalig, für immer",
-    features: ["Alle Premium+-Funktionen inkl. Inkognito", "Einmal zahlen, dauerhaft nutzen"],
   },
 ];
 
@@ -46,24 +32,10 @@ export function UpgradeModal({ isOpen, onClose, locale = "de" }: UpgradeModalPro
         {
           id: "premium" as const,
           name: "Premium",
-          price: "12 EUR",
-          hint: "per year, cancel anytime",
-          features: ["Unlimited tabs, sections and subsections", "Completely ad-free"],
-        },
-        {
-          id: "premium_plus" as const,
-          name: "Premium+",
           price: "24 EUR",
           hint: "per year, cancel anytime",
-          features: ["Everything in Premium", "Incognito mode: private password-protected tabs"],
+          features: ["Unlimited normal links (instead of 30)", "Unlimited private links in the incognito tab (instead of 5)", "Completely ad-free"],
           highlight: true,
-        },
-        {
-          id: "lifetime" as const,
-          name: "Lifetime",
-          price: "69 EUR",
-          hint: "one-time, forever",
-          features: ["All Premium+ features including Incognito", "Pay once, use forever"],
         },
       ]
     : PLANS;
@@ -109,7 +81,7 @@ export function UpgradeModal({ isOpen, onClose, locale = "de" }: UpgradeModalPro
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
           <div>
             <h3 className="text-lg font-bold text-brand-dark m-0">LinkLib Premium</h3>
-            <p className="text-sm text-slate-500 m-0 mt-1">{isEn ? "Ad-free and unlimited, with Incognito mode included in Premium+." : "Werbefrei und unbegrenzt - mit Premium+ inklusive Inkognito-Modus."}</p>
+            <p className="text-sm text-slate-500 m-0 mt-1">{isEn ? "Ad-free and unlimited normal & private links." : "Werbefrei und unbegrenzt viele normale & private Links."}</p>
           </div>
           <button
             onClick={onClose}

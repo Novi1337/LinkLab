@@ -58,17 +58,21 @@ export async function getAdminFromRequest(request: Request) {
 // Serverseitiges Mapping von Plan-Name auf Stripe-Price-ID.
 // Der Client schickt NUR den Plan-Namen - niemals Preise oder Price-IDs,
 // damit niemand den Preis manipulieren kann.
+// "lifetime" ist bewusst NICHT enthalten: dieser Plan ist nicht käuflich,
+// sondern wird Admins ausschließlich manuell per supabase/owner.sql vergeben.
 export const PLAN_PRICE_ENV: Record<string, string | undefined> = {
   premium: process.env.STRIPE_PRICE_PREMIUM,
-  premium_plus: process.env.STRIPE_PRICE_PREMIUM_PLUS,
-  lifetime: process.env.STRIPE_PRICE_LIFETIME,
 };
 
-// premium      = 12 €/Jahr: unbegrenzte Reiter/Abschnitte, werbefrei
-// premium_plus = 24 €/Jahr: wie premium + Inkognito-Modus
-// lifetime     = 69 € einmalig: wie premium_plus, ohne Abo
-export type PremiumPlan = "premium" | "premium_plus" | "lifetime";
+// premium  = 24 €/Jahr: unbegrenzte normale + private (Inkognito-)Links, werbefrei
+// lifetime = intern/Admin-only, nicht über Checkout kaufbar (siehe supabase/owner.sql)
+export type PremiumPlan = "premium" | "lifetime";
+
+// Nur der öffentlich kaufbare Plan-Name ist über den Checkout gültig.
+export function isPurchasablePlan(value: unknown): value is "premium" {
+  return value === "premium";
+}
 
 export function isPremiumPlan(value: unknown): value is PremiumPlan {
-  return value === "premium" || value === "premium_plus" || value === "lifetime";
+  return value === "premium" || value === "lifetime";
 }

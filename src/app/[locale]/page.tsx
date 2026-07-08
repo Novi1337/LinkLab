@@ -17,7 +17,6 @@ import { LegalFooter } from "@/components/LegalFooter";
 import { LandingSections } from "@/components/LandingSections";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import type { ModerationReasonCode } from "@/lib/moderation";
-import { isOwnerClientUser } from "@/lib/ownerClient";
 import { localeFromPathname, type AppLocale } from "@/lib/locale";
 
 type Link = {
@@ -164,10 +163,14 @@ export default function Home() {
     deleteTabMessage: isEn
       ? "This tab and all contained sections and links will be deleted permanently."
       : "Dieser Reiter inklusive aller beinhalteten Sektionen und Links wird unwiderruflich gelöscht.",
-    premiumFeatureTitle: isEn ? "Premium+ feature" : "Premium+-Funktion",
-    premiumFeatureMessage: isEn
-      ? "Private tabs with Incognito mode are available with Premium+ (24 EUR/year) or Lifetime access (69 EUR one-time)."
-      : "Private Reiter mit Inkognito-Modus gibt es im Premium+-Abo (24 €/Jahr) oder mit Lifetime-Zugang (69 € einmalig).",
+    linkLimitTitle: isEn ? "Link limit reached" : "Link-Limit erreicht",
+    linkLimitMessage: isEn
+      ? "You've reached the free limit of 30 links. Upgrade to Premium for unlimited links."
+      : "Du hast dein kostenloses Limit von 30 Links erreicht. Hol dir Premium für unbegrenzte Links.",
+    privateLinkLimitTitle: isEn ? "Private link limit reached" : "Limit für private Links erreicht",
+    privateLinkLimitMessage: isEn
+      ? "You've reached the free limit of 5 private links. Upgrade to Premium for unlimited private links."
+      : "Du hast dein kostenloses Limit von 5 privaten Links erreicht. Hol dir Premium für unbegrenzte private Links.",
     upgrade: isEn ? "Upgrade" : "Upgrade",
     saveFailed: isEn ? "Saving failed" : "Speichern fehlgeschlagen",
     wrongPassword: isEn ? "Incorrect password." : "Falsches Passwort.",
@@ -215,7 +218,6 @@ export default function Home() {
     registerFree: isEn ? "Register for free" : "Kostenlos registrieren",
     inviteTitle: isEn ? "Invite friends - get 1 year Premium" : "Freunde einladen - 1 Jahr Premium sichern",
     invite: isEn ? "Invite" : "Einladen",
-    ownerTitle: isEn ? "Owner mode: Premium permanently active" : "Owner-Modus: Premium dauerhaft aktiv",
     lifetimeTitle: isEn ? "Lifetime Premium access incl. Incognito" : "Lebenslanger Premium-Zugang inkl. Inkognito",
     managePremiumTitle: isEn ? "Manage Premium subscription" : "Premium-Abo verwalten",
     referralPremiumUntil: isEn ? "Premium via referrals until " : "Premium über Empfehlungsprogramm bis ",
@@ -271,7 +273,6 @@ export default function Home() {
   // Zusätzlich kann zeitlich begrenztes Premium aus dem Empfehlungsprogramm aktiv sein.
   const [premiumPlan, setPremiumPlan] = useState<string | null>(null);
   const [referralUntil, setReferralUntil] = useState<string | null>(null);
-  const [ownerPremium, setOwnerPremium] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [referralModalOpen, setReferralModalOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
@@ -279,10 +280,13 @@ export default function Home() {
   const [reportBusy, setReportBusy] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const referralPremiumActive = !!referralUntil && new Date(referralUntil) > new Date();
-  const isPremium = ownerPremium || !!premiumPlan || referralPremiumActive;
-  // Inkognito-Modus ist Premium+ und Lifetime vorbehalten -
-  // Basis-Premium und Referral-Premium enthalten ihn NICHT.
-  const hasIncognitoAccess = ownerPremium || premiumPlan === "premium_plus" || premiumPlan === "lifetime";
+  const isPremium = !!premiumPlan || referralPremiumActive;
+
+  // Free-Limits (global pro Account): 30 normale Links, 5 private (Inkognito-)Links.
+  // Premium/Lifetime/Referral-Premium sind unbegrenzt (siehe isPremium).
+  const [linkCounts, setLinkCounts] = useState<{ normal: number; private: number }>({ normal: 0, private: 0 });
+  const NORMAL_LINK_LIMIT = 30;
+  const PRIVATE_LINK_LIMIT = 5;
 
   // Inkognito-Modus (Premium): entsperrt = private Reiter sichtbar.
   // Der Hash des Inkognito-Passworts wird zusammen mit dem Premium-Status geladen.
@@ -301,16 +305,39 @@ export default function Home() {
   const fetchPremiumStatus = useCallback(async () => {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) return;
-    const isOwner = isOwnerClientUser(sessionData.session.user.id, sessionData.session.user.email || null);
-    setOwnerPremium(isOwner);
     const { data } = await supabase
       .from("profiles")
       .select("premium_plan, incognito_password_hash, referral_premium_until")
       .eq("id", sessionData.session.user.id)
       .maybeSingle();
-    setPremiumPlan(isOwner ? "owner" : (data?.premium_plan || ""));
+    setPremiumPlan(data?.premium_plan || "");
     setReferralUntil(data?.referral_premium_until || null);
     setIncognitoHash(data?.incognito_password_hash || null);
+  }, []);
+
+  // Zählt alle vorhandenen Links des Accounts (normal vs. privat), unabhängig
+  // vom aktuell aktiven Reiter - Grundlage für die client-seitige Vorab-Prüfung
+  // der Free-Limits. Die eigentliche Durchsetzung passiert zusätzlich in der DB
+  // (supabase/link-limits.sql), da Inserts direkt per Supabase-Client laufen.
+  const fetchLinkCounts = useCallback(async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) return;
+    const [{ data: allTabs }, { data: allSections }, { data: allLinks }] = await Promise.all([
+      supabase.from("tabs").select("id, is_private"),
+      supabase.from("sections").select("id, tab_id"),
+      supabase.from("links").select("id, section_id"),
+    ]);
+    const privateTabIds = new Set((allTabs || []).filter((tb) => tb.is_private).map((tb) => tb.id));
+    const sectionIsPrivate = new Map(
+      (allSections || []).map((s) => [s.id, s.tab_id ? privateTabIds.has(s.tab_id) : false])
+    );
+    let normal = 0;
+    let priv = 0;
+    for (const link of allLinks || []) {
+      if (sectionIsPrivate.get(link.section_id)) priv++;
+      else normal++;
+    }
+    setLinkCounts({ normal, private: priv });
   }, []);
 
   // Referral-Link (?ref=CODE): Code lokal merken, damit er nach der Registrierung
@@ -603,6 +630,7 @@ export default function Home() {
         setUserEmail(session.user.email || "");
         fetchData(null);
         fetchPremiumStatus();
+        fetchLinkCounts();
         redeemPendingReferral(session.access_token);
         redeemPendingShare(session.access_token);
       } else {
@@ -613,16 +641,16 @@ export default function Home() {
         setActiveTabId(null);
         setPremiumPlan(null);
         setReferralUntil(null);
-        setOwnerPremium(false);
         setReportTarget(null);
         setReportError(null);
         setReportBusy(false);
+        setLinkCounts({ normal: 0, private: 0 });
         setIncognitoUnlocked(false);
         setIncognitoHash(null);
       }
     });
     return () => subscription.unsubscribe();
-  }, [fetchData, fetchPremiumStatus]);
+  }, [fetchData, fetchPremiumStatus, fetchLinkCounts]);
 
   // Tab Methods
   const addTab = async () => {
@@ -681,21 +709,10 @@ export default function Home() {
     await supabase.from("tabs").update({ is_private: newValue }).eq("id", tab.id);
   };
 
-  // Klick auf das Auge in der Tab-Leiste: Premium+-Check, dann sperren bzw. entsperren
+  // Klick auf das Auge in der Tab-Leiste: sperren bzw. entsperren.
+  // Der Inkognito-Reiter steht allen Nutzern offen - nur die Anzahl der
+  // darin speicherbaren Links ist im Free-Plan begrenzt (siehe addLink).
   const toggleIncognito = () => {
-    if (!hasIncognitoAccess) {
-      openConfirm(
-        t.premiumFeatureTitle,
-        t.premiumFeatureMessage,
-        () => {
-          closeConfirm();
-          setUpgradeModalOpen(true);
-        },
-        t.upgrade
-      );
-      return;
-    }
-
     if (incognitoUnlocked) {
       // Zurück in den öffentlichen Modus: private Reiter verschwinden sofort
       setIncognitoUnlocked(false);
@@ -826,6 +843,26 @@ export default function Home() {
 
     // https als Standard-Protokoll: praktisch jede Seite unterstützt heute TLS,
     // und http-Links würden von Browsern zunehmend blockiert/abgewertet.
+
+    // Free-Limit vorab prüfen (verhindert unnötigen Insert-Versuch + sofortiges Popup).
+    // Die eigentliche, fälschungssichere Durchsetzung passiert zusätzlich per
+    // DB-Trigger (supabase/link-limits.sql), siehe Fehlerbehandlung weiter unten.
+    const activeTab = tabs.find((tb) => tb.id === activeTabId);
+    const isPrivateTarget = !!activeTab?.is_private;
+    if (!isPremium) {
+      const limit = isPrivateTarget ? PRIVATE_LINK_LIMIT : NORMAL_LINK_LIMIT;
+      const count = isPrivateTarget ? linkCounts.private : linkCounts.normal;
+      if (count >= limit) {
+        openConfirm(
+          isPrivateTarget ? t.privateLinkLimitTitle : t.linkLimitTitle,
+          isPrivateTarget ? t.privateLinkLimitMessage : t.linkLimitMessage,
+          () => { closeConfirm(); setUpgradeModalOpen(true); },
+          t.upgrade
+        );
+        return;
+      }
+    }
+
     const fullUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
     let domain = fullUrl;
     try { domain = new URL(fullUrl).hostname.replace(/^www\./, ""); } catch {}
@@ -847,8 +884,24 @@ export default function Home() {
         title: domain, description: t.loadingMetadata, domain, initial
     }]).select();
 
-    if (error || !insertedData) return fetchData(activeTabId);
+    if (error || !insertedData) {
+      // Fallback: DB-Trigger hat das Free-Limit durchgesetzt (z. B. Race Condition
+      // oder Umgehungsversuch über einen direkten API-Aufruf) -> optimistischen
+      // Link zurücknehmen und Upgrade-Popup statt stillem Fehler zeigen.
+      if (error?.message?.includes("LINK_LIMIT_REACHED")) {
+        setSections(prev => updateSectionInState(prev, sectionId, s => ({ ...s, links: s.links.filter(l => l.id !== tempId) })));
+        openConfirm(
+          isPrivateTarget ? t.privateLinkLimitTitle : t.linkLimitTitle,
+          isPrivateTarget ? t.privateLinkLimitMessage : t.linkLimitMessage,
+          () => { closeConfirm(); setUpgradeModalOpen(true); },
+          t.upgrade
+        );
+        return;
+      }
+      return fetchData(activeTabId);
+    }
     const realDbLink = insertedData[0];
+    setLinkCounts(prev => isPrivateTarget ? { ...prev, private: prev.private + 1 } : { ...prev, normal: prev.normal + 1 });
 
     // Fetch Metadata
     try {
@@ -876,6 +929,7 @@ export default function Home() {
       closeConfirm();
       await supabase.from("links").delete().eq("id", linkId);
       fetchData(activeTabId);
+      fetchLinkCounts();
     });
   };
 
@@ -1314,19 +1368,17 @@ export default function Home() {
           <div className="w-[1px] h-4 bg-slate-300 hidden sm:block"></div>
           {isPremium ? (
             <button
-              onClick={ownerPremium ? undefined : (premiumPlan ? openBillingPortal : () => setUpgradeModalOpen(true))}
+              onClick={premiumPlan === "lifetime" ? undefined : (premiumPlan ? openBillingPortal : () => setUpgradeModalOpen(true))}
               title={
-                ownerPremium
-                  ? t.ownerTitle
-                  : premiumPlan === "lifetime"
+                premiumPlan === "lifetime"
                   ? t.lifetimeTitle
                   : premiumPlan
                     ? t.managePremiumTitle
                     : `${t.referralPremiumUntil}${referralUntil ? new Date(referralUntil).toLocaleDateString(locale === "en" ? "en-US" : "de-DE") : ""}`
               }
-              className={`font-bold transition-colors flex items-center gap-1 ${ownerPremium ? "text-emerald-600" : "text-amber-500 hover:text-amber-600"}`}
+              className={`font-bold transition-colors flex items-center gap-1 ${premiumPlan === "lifetime" ? "text-emerald-600" : "text-amber-500 hover:text-amber-600"}`}
             >
-              ★ {ownerPremium ? "Owner" : premiumPlan === "lifetime" ? "Lifetime" : premiumPlan === "premium_plus" ? "Premium+" : "Premium"}
+              ★ {premiumPlan === "lifetime" ? "Lifetime" : "Premium"}
             </button>
           ) : (
             <button

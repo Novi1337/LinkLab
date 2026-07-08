@@ -59,6 +59,11 @@ function SaveWidget() {
   const [manualUrl, setManualUrl] = useState("");
   const [options, setOptions] = useState<TargetOption[]>([]);
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
+  // Free-Limit (30 normale Links, global pro Account): der Save-Popup-Flow kann
+  // ohnehin nur in nicht-privaten Reitern speichern, daher zählt nur das Normal-Limit.
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
+  const [normalLinkCount, setNormalLinkCount] = useState(0);
+  const NORMAL_LINK_LIMIT = 30;
 
   // Login-Formular (falls der Nutzer im Popup noch nicht angemeldet ist)
   const [emailInput, setEmailInput] = useState("");
@@ -72,9 +77,11 @@ function SaveWidget() {
   // Private (Inkognito-)Reiter bleiben außen vor, da das Popup bewusst
   // keine Passwort-Abfrage für den Inkognito-Modus enthält.
   const loadTargets = useCallback(async () => {
-    const [{ data: tabsData }, { data: sectionsData }] = await Promise.all([
+    const [{ data: tabsData }, { data: sectionsData }, { data: linksData }, { data: sessionData }] = await Promise.all([
       supabase.from("tabs").select("id, name, is_private").order("created_at", { ascending: true }),
       supabase.from("sections").select("id, name, parent_id, tab_id").order("created_at", { ascending: true }),
+      supabase.from("links").select("id, section_id"),
+      supabase.auth.getSession(),
     ]);
 
     const tabs = tabsData || [];
@@ -83,6 +90,7 @@ function SaveWidget() {
     const firstTabId = publicTabs[0]?.id ?? null;
 
     const opts: TargetOption[] = [];
+    const publicSectionIds = new Set<string>();
     for (const tab of publicTabs) {
       // Sektionen ohne tab_id gehören historisch zum ersten Reiter
       const tabSections = sections.filter(
@@ -90,10 +98,23 @@ function SaveWidget() {
       );
       for (const parent of tabSections.filter((s) => !s.parent_id)) {
         opts.push({ sectionId: parent.id, label: `${tab.name} / ${parent.name}` });
+        publicSectionIds.add(parent.id);
         for (const sub of tabSections.filter((s) => s.parent_id === parent.id)) {
           opts.push({ sectionId: sub.id, label: `${tab.name} / ${parent.name} / ${sub.name}` });
+          publicSectionIds.add(sub.id);
         }
       }
+    }
+    setNormalLinkCount((linksData || []).filter((l) => publicSectionIds.has(l.section_id)).length);
+
+    if (sessionData.session) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("premium_plan, referral_premium_until")
+        .eq("id", sessionData.session.user.id)
+        .maybeSingle();
+      const referralActive = !!profile?.referral_premium_until && new Date(profile.referral_premium_until) > new Date();
+      setIsPremiumUser(!!profile?.premium_plan || referralActive);
     }
 
     setOptions(opts);
@@ -156,6 +177,16 @@ function SaveWidget() {
       return;
     }
 
+    if (!isPremiumUser && normalLinkCount >= NORMAL_LINK_LIMIT) {
+      setErrorMessage(
+        isEn
+          ? "You've reached the free limit of 30 links. Upgrade to Premium in the main app for unlimited links."
+          : "Du hast dein kostenloses Limit von 30 Links erreicht. Hol dir in der Hauptapp Premium für unbegrenzte Links."
+      );
+      setStatus("error");
+      return;
+    }
+
     setStatus("saving");
     setErrorMessage("");
 
@@ -183,6 +214,13 @@ function SaveWidget() {
         initial,
       }]).select();
       if (error || !insertedData?.length) {
+        if (error?.message?.includes("LINK_LIMIT_REACHED")) {
+          throw new Error(
+            isEn
+              ? "You've reached the free limit of 30 links. Upgrade to Premium in the main app for unlimited links."
+              : "Du hast dein kostenloses Limit von 30 Links erreicht. Hol dir in der Hauptapp Premium für unbegrenzte Links."
+          );
+        }
         throw new Error(error?.message || (isEn ? "The link could not be saved." : "Der Link konnte nicht gespeichert werden."));
       }
 

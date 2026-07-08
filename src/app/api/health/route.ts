@@ -18,8 +18,6 @@ export async function GET() {
     STRIPE_SECRET_KEY: !!process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: !!process.env.STRIPE_WEBHOOK_SECRET,
     STRIPE_PRICE_PREMIUM: !!process.env.STRIPE_PRICE_PREMIUM,
-    STRIPE_PRICE_PREMIUM_PLUS: !!process.env.STRIPE_PRICE_PREMIUM_PLUS,
-    STRIPE_PRICE_LIFETIME: !!process.env.STRIPE_PRICE_LIFETIME,
   };
 
   // Aktiver DB-Test: schlägt fehl, wenn der Service-Role-Key ungültig ist

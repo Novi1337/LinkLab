@@ -1,6 +1,9 @@
 -- Owner/Admin-Zugang: verleiht dem eigenen Account dauerhaftes Premium (Lifetime),
--- ohne Stripe-Kauf. Wirkt client- UND serverseitig, da überall profiles.premium_plan
--- geprüft wird - im Gegensatz zur rein clientseitigen NEXT_PUBLIC_OWNER_*-Variante.
+-- ohne Stripe-Kauf. Dies ist der EINZIGE Weg, Admins vollen Zugriff (inkl.
+-- unbegrenzter normaler + privater Links, siehe link-limits.sql) zu geben - der
+-- frühere rein clientseitige NEXT_PUBLIC_OWNER_*-Bypass wurde entfernt, da eine
+-- reine Client-Variable von serverseitigen/DB-Prüfungen (z. B. Link-Limit-Trigger)
+-- ohnehin nicht erkannt werden kann.
 --
 -- Anwendung: Supabase Dashboard -> SQL Editor -> New query,
 -- unten 'DEINE_EMAIL_HIER' (2x) durch die eigene Login-E-Mail ersetzen und ausführen.
